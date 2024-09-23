@@ -37,6 +37,36 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'car_app',
+]
+
+# REST Framework 설정
+REST_FRAMEWORK = {
+    # 기본 인증 방식을 JWT로 설정
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    # 모든 API 엔드포인트에 기본적으로 인증이 필요하도록 설정
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
+
+# JWT 토큰의 유효기간 및 설정 (옵션)
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),  # 액세스 토큰 유효시간을 5분으로 설정
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),    # 리프레시 토큰 유효시간을 1일로 설정
+    'ROTATE_REFRESH_TOKENS': False,                # 리프레시 토큰이 재발급될 때 새로운 리프레시 토큰을 발급할지 여부
+    'BLACKLIST_AFTER_ROTATION': True,              # 리프레시 토큰이 재발급된 후, 이전 토큰을 블랙리스트에 넣을지 여부
+}
+
+# 로그인을 위한 커스텀 백엔드
+AUTHENTICATION_BACKENDS = [
+    'car_app.auth_backend.EmailOrPhoneBackend',  # 커스텀 백엔드
+    'django.contrib.auth.backends.ModelBackend',  # 기본 Django 백엔드 (슈퍼유저 로그인 등)
 ]
 
 MIDDLEWARE = [
