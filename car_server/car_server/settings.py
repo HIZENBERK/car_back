@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,36 +39,29 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_simplejwt',
     'car_app',
 ]
 
-# REST Framework 설정
+# CustomUser 모델 사용
+AUTH_USER_MODEL = 'car_app.CustomUser'
+
+# DRF 설정
 REST_FRAMEWORK = {
-    # 기본 인증 방식을 JWT로 설정
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
-    # 모든 API 엔드포인트에 기본적으로 인증이 필요하도록 설정
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT 인증 클래스 사용
     ),
 }
 
-# JWT 토큰의 유효기간 및 설정 (옵션)
-from datetime import timedelta
-
+# JWT 관련 설정
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),  # 액세스 토큰 유효시간을 5분으로 설정
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),    # 리프레시 토큰 유효시간을 1일로 설정
-    'ROTATE_REFRESH_TOKENS': False,                # 리프레시 토큰이 재발급될 때 새로운 리프레시 토큰을 발급할지 여부
-    'BLACKLIST_AFTER_ROTATION': True,              # 리프레시 토큰이 재발급된 후, 이전 토큰을 블랙리스트에 넣을지 여부
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Access 토큰 유효 시간 60분
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),  # Refresh 토큰 유효 시간 1일
+    'ROTATE_REFRESH_TOKENS': True,  # Refresh 토큰 갱신
+    'BLACKLIST_AFTER_ROTATION': True,  # 이전 Refresh 토큰 무효화
+    'AUTH_HEADER_TYPES': ('Bearer',),  # Authorization 헤더에서 Bearer 타입 사용
 }
 
-# 로그인을 위한 커스텀 백엔드
-AUTHENTICATION_BACKENDS = [
-    'car_app.auth_backend.EmailOrPhoneBackend',  # 커스텀 백엔드
-    'django.contrib.auth.backends.ModelBackend',  # 기본 Django 백엔드 (슈퍼유저 로그인 등)
-]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
