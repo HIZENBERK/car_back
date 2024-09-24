@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser
+from .models import CustomUser, Vehicle
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -59,3 +59,21 @@ class LoginSerializer(serializers.Serializer):
         if user and user.check_password(password):  # 비밀번호 확인
             return user  # 사용자 반환
         raise serializers.ValidationError("Invalid login credentials.")  # 로그인 실패 시 오류 발생
+
+
+# 차량 정보를 처리하는 Serializer
+class VehicleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vehicle
+        fields = [
+            'id',               # 차량 ID (자동 생성)
+            'vehicle_type',      # 차량 종류
+            'car_registration_number',  # 자동차 등록번호
+            'license_plate_number',  # 차량 번호(번호판)
+            'purchase_date',     # 구매 연/월/일
+            'purchase_price',    # 구매 가격
+            'total_mileage',     # 총 주행 거리 (정수, 음수 불가)
+            'last_used_date',    # 마지막 사용일 (비어 있을 수 있음)
+            'last_user',         # 마지막 사용자 (CustomUser 참조)
+        ]
+        read_only_fields = ['last_user']  # 마지막 사용자는 자동으로 기록될 수 있음
