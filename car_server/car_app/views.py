@@ -5,6 +5,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import RegisterSerializer, LoginSerializer
 from .models import CustomUser
 
+
 # 회원가입 요청을 처리하는 View
 class RegisterView(APIView):
     """
