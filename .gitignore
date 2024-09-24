@@ -2,5 +2,3 @@
 /car_server/car_app/__pycache__/
 /venv/
 /.venv/
-/car_server/db.sqlite3
-/car_server/car_app/migrations/
