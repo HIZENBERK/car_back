@@ -8,3 +8,4 @@
 /dataSources.local.xml
 /car_server/car_server/__pycache__/
 /car_server/car_app/__pycache__/
+/car_server/car_app/migrations/
