@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.shortcuts import get_object_or_404
-from .serializers import RegisterSerializer, LoginSerializer, VehicleSerializer
-from .models import CustomUser, Vehicle
+from .serializers import RegisterSerializer, LoginSerializer, VehicleSerializer, DrivingRecordSerializer
+from .models import CustomUser, Vehicle, DrivingRecord
 
 
 # 회원가입 요청을 처리하는 View
@@ -37,6 +37,7 @@ class LoginView(APIView):
                 'access': str(refresh.access_token),  # Access 토큰
             }, status=status.HTTP_200_OK)  # 토큰과 함께 성공 응답 반환
         return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)  # 로그인 실패 시 오류 반환
+
 
 
 # 차량 목록 및 등록 처리
@@ -79,9 +80,12 @@ class VehicleDetailView(APIView):
 
     def put(self, request, pk):
         vehicle = get_object_or_404(Vehicle, pk=pk)
-        serializer = VehicleSerializer(vehicle, data=request.data, partial=True)  # 부분 업데이트 가능
+        serializer = VehicleSerializer(vehicle, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save(last_user=request.user)  # 마지막 사용자는 수정한 사용자로 설정
+            if request.user.is_authenticated:
+                serializer.save(last_user=request.user)  # 인증된 사용자의 경우 last_user 설정
+            else:
+                serializer.save()  # 인증되지 않은 경우 last_user는 설정되지 않음
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -101,3 +105,49 @@ class VehicleByLicensePlateView(APIView):
         vehicle = get_object_or_404(Vehicle, license_plate_number=license_plate_number)
         serializer = VehicleSerializer(vehicle)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+# 운행 기록 목록 및 생성 처리
+class DrivingRecordListCreateView(APIView):
+    """
+    GET: 전체 운행 기록 목록 조회
+    POST: 새로운 운행 기록 생성
+    """
+    def get(self, request):
+        records = DrivingRecord.objects.all()  # 모든 운행 기록 가져오기
+        serializer = DrivingRecordSerializer(records, many=True)  # 여러 개의 운행 기록 직렬화
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        serializer = DrivingRecordSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()  # 유효성 검사를 통과한 경우 데이터베이스에 저장
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# 특정 운행 기록 조회, 수정 및 삭제 처리
+class DrivingRecordDetailView(APIView):
+    """
+    GET: 특정 운행 기록 조회
+    PUT: 특정 운행 기록 수정
+    DELETE: 특정 운행 기록 삭제
+    """
+    def get(self, request, pk):
+        record = get_object_or_404(DrivingRecord, pk=pk)  # pk로 특정 운행 기록 조회
+        serializer = DrivingRecordSerializer(record)
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        record = get_object_or_404(DrivingRecord, pk=pk)  # pk로 특정 운행 기록 조회
+        serializer = DrivingRecordSerializer(record, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()  # 수정된 내용을 데이터베이스에 저장
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        record = get_object_or_404(DrivingRecord, pk=pk)  # pk로 특정 운행 기록 조회
+        record.delete()  # 운행 기록 삭제
+        return Response(status=status.HTTP_204_NO_CONTENT)

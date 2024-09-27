@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser, Vehicle
+from .models import CustomUser, Vehicle, DrivingRecord
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -67,6 +67,7 @@ class VehicleSerializer(serializers.ModelSerializer):
         model = Vehicle
         fields = [
             'id',               # 차량 ID (자동 생성)
+            'vehicle_category',       # 차량 카테고리 (내연기관차, 전기차, 수소차 등)
             'vehicle_type',      # 차량 종류
             'car_registration_number',  # 자동차 등록번호
             'license_plate_number',  # 차량 번호(번호판)
@@ -77,3 +78,46 @@ class VehicleSerializer(serializers.ModelSerializer):
             'last_user',         # 마지막 사용자 (CustomUser 참조)
         ]
         read_only_fields = ['last_user']  # 마지막 사용자는 자동으로 기록될 수 있음
+
+
+# 운행 기록을 처리하는 Serializer
+class DrivingRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DrivingRecord
+        fields = [
+            'id',                   # 운행 기록 ID (자동 생성)
+            'vehicle',              # 차량 정보 (Vehicle 참조)
+            'user',                 # 사용자 정보 (CustomUser 참조) 임시로 자동생성된 id를 사용
+            'departure_location',    # 출발지
+            'arrival_location',      # 도착지
+            'departure_mileage',     # 출발 전 주행거리
+            'arrival_mileage',       # 도착 후 주행거리
+            'driving_distance',      # 운행 거리 (자동 계산)
+            'departure_time',        # 출발 시간
+            'arrival_time',          # 도착 시간
+            'driving_time',          # 운행 시간 (자동 계산)
+            'driving_purpose'        # 운행 목적
+        ]
+        read_only_fields = ['driving_distance', 'driving_time']  # 운행 거리 및 운행 시간은 자동 계산됨, 프론트에서 포맷팅 필요
+
+    def create(self, validated_data):
+        # 운행 거리를 자동으로 계산 (도착 후 주행거리 - 출발 전 주행거리)
+        driving_distance = validated_data['arrival_mileage'] - validated_data['departure_mileage']
+        # 운행 시간을 자동으로 계산 (도착 시간 - 출발 시간)
+        driving_time = validated_data['arrival_time'] - validated_data['departure_time']
+
+        # 새로운 DrivingRecord 객체 생성
+        driving_record = DrivingRecord.objects.create(
+            vehicle=validated_data['vehicle'],
+            user=validated_data['user'],
+            departure_location=validated_data['departure_location'],
+            arrival_location=validated_data['arrival_location'],
+            departure_mileage=validated_data['departure_mileage'],
+            arrival_mileage=validated_data['arrival_mileage'],
+            driving_distance=driving_distance,
+            departure_time=validated_data['departure_time'],
+            arrival_time=validated_data['arrival_time'],
+            driving_time=driving_time,
+            driving_purpose=validated_data['driving_purpose']
+        )
+        return driving_record
