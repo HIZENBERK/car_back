@@ -24,6 +24,18 @@ class RegisterSerializer(serializers.ModelSerializer):
             'name'  # 이름
         ]
     
+    #이메일 중복 검증
+    def validate_email(self, value):
+        if CustomUser.objects.filter(email=value).exists():
+            raise serializers.ValidationError("이미 존재하는 이메일입니다.")
+        return value
+    
+    #전화번호 중복 검증
+    def validate_phone_number(self, value):
+        if CustomUser.objects.filter(phone_number=value).exists():
+            raise serializers.ValidationError("이미 존재하는 전화번호입니다.")
+        return value
+    
     # 비밀번호 검증
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
@@ -41,6 +53,22 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.set_password(validated_data['password'])  # 비밀번호 해싱
         user.save()  # 데이터베이스에 저장
         return user
+
+class CustomUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = [
+            'email',                      # 이메일
+            'phone_number',               # 전화번호
+            'device_uuid',                # 단말기 UUID
+            'company_name',               # 회사명
+            'business_registration_number', # 사업자 등록 번호
+            'department',                 # 부서명
+            'position',                   # 직급
+            'name',                       # 이름
+            'usage_distance',             # 사용 거리
+            'unpaid_penalties'            # 미납 과태료
+        ]
 
 
 # 로그인 시 데이터를 검증하고 JWT 토큰을 반환하는 Serializer

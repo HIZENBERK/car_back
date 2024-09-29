@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',  # 로그아웃에 필요함
     'car_app',
     'corsheaders',
 ]
@@ -59,6 +60,7 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Access 토큰 유효 시간 60분
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),  # Refresh 토큰 유효 시간 1일
     'ROTATE_REFRESH_TOKENS': True,  # Refresh 토큰 갱신
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
     'BLACKLIST_AFTER_ROTATION': True,  # 이전 Refresh 토큰 무효화
     'AUTH_HEADER_TYPES': ('Bearer',),  # Authorization 헤더에서 Bearer 타입 사용
 }

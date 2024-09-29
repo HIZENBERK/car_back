@@ -1,9 +1,11 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from datetime import datetime
+import uuid
 
 # Django 기본 User 모델을 확장하여 필요한 사용자 정보 필드를 추가
 class CustomUser(AbstractUser):
+    username = models.CharField(max_length=255, unique=False, blank=True, null=True)  # 자동생성 필드임 실제로 사용하지 않음
     email = models.EmailField(unique=True)  # 이메일 필드를 고유값으로 설정
     phone_number = models.CharField(max_length=30, unique=True)  # 전화번호 (고유값)
     device_uuid = models.CharField(max_length=30)  # 단말기 UUID
@@ -19,6 +21,11 @@ class CustomUser(AbstractUser):
     EMAIL_FIELD = 'email'
     USERNAME_FIELD = 'email'  # 기본 로그인 필드를 이메일로 설정
     REQUIRED_FIELDS = ['phone_number', 'name']  # 필수 필드를 지정 (전화번호와 이름)
+    
+    def save(self, *args, **kwargs): #django username의 무결성 제약 조건 때문에 만든것. 실제로 사용하지 않음
+        if not self.username:
+            self.username = str(uuid.uuid4())[:8]  # username을 고유한 UUID로 자동 생성
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.email  # 출력 시 이메일을 반환
@@ -27,7 +34,7 @@ class CustomUser(AbstractUser):
 
 # 차량 정보 모델
 class Vehicle(models.Model):
-    vehicle_category = models.CharField(max_length=10)  # 차량 카테고리
+    vehicle_category = models.CharField(max_length=10)  # 차량 카테고리 예: 내연기관, 전기차, 수소차 등
     vehicle_type = models.CharField(max_length=20)  # 차종 예: K3, 아반떼, K5, 소나타 등
     car_registration_number = models.CharField(max_length=10, unique=True)  # 자동차 등록번호
     license_plate_number = models.CharField(max_length=10, unique=True)  # 차량 번호(번호판)
@@ -45,7 +52,7 @@ class Vehicle(models.Model):
     def __str__(self):
         return f'{self.vehicle_type} - {self.license_plate_number}'
 
-
+"""
 # 차량 정기 검사 모델
 class RegularInspection(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)  # 차량 참조 (Vehicle 모델 참조)
@@ -55,7 +62,7 @@ class RegularInspection(models.Model):
 
     def __str__(self):
         return f'{self.vehicle.vehicle_type} - {self.inspection_date} 정기 검사'
-
+"""
 
 
 # 운행 기록 모델
