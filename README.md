@@ -39,5 +39,5 @@ python manage.py runserver
 
 Send An API request - New Request
 Body - raw - Json
-db 더미 데이터 Json코드.txt 참조하여 데이터 삽입
+db 더미 데이터 Json코드.txt 참조하여 데이터 삽입 - Discord 파일공유란에서 다운 or 카톡에서 다운
 Send
