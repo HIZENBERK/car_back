@@ -45,6 +45,8 @@ class RegisterView(APIView):
 class UserListView(APIView):
     """
     GET: 전체 회원 정보 조회
+    PATCH: 특정 회원 정보 수정
+    DELETE: 특정 회원 삭제
     """
     def get(self, request):
         try:
@@ -65,7 +67,47 @@ class UserListView(APIView):
                 "error": str(e)  # 예외 메시지 반환
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    def patch(self, request, pk):
+        """
+        특정 회원 정보 수정
+        """
+        try:
+            user = get_object_or_404(CustomUser, pk=pk)  # 회원 정보 조회
+            serializer = CustomUserSerializer(user, data=request.data, partial=True)  # 부분 업데이트 허용
+            if serializer.is_valid():
+                serializer.save()  # 회원 정보 업데이트
+                return Response({
+                    "message": "회원 정보가 성공적으로 수정되었습니다.",
+                    "user": serializer.data  # 수정된 회원 정보 반환
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    "message": "회원 정보 수정에 실패했습니다.",
+                    "errors": serializer.errors  # 유효성 검사 오류 반환
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({
+                "message": "회원 정보 수정 중 오류가 발생했습니다.",
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    def delete(self, request, pk):
+        """
+        특정 회원 삭제
+        """
+        try:
+            user = get_object_or_404(CustomUser, pk=pk)  # 회원 정보 조회
+            user.delete()  # 회원 삭제
+            return Response({
+                "message": "회원이 성공적으로 삭제되었습니다."
+            }, status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({
+                "message": "회원 삭제 중 오류가 발생했습니다.",
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            
 # 로그인 요청을 처리하는 View
 class LoginView(APIView):
     """
@@ -77,16 +119,19 @@ class LoginView(APIView):
         if serializer.is_valid(raise_exception=True):  # 데이터 검증
             user = serializer.validated_data  # 검증된 사용자 데이터
             refresh = RefreshToken.for_user(user)  # 사용자로부터 JWT 토큰 생성
+            user_info_serializer = CustomUserSerializer(user) # 사용자 정보 시리얼라이저
             return Response({
                 "message": "로그인이 성공적으로 완료되었습니다.",
                 'refresh': str(refresh),  # Refresh 토큰
                 'access': str(refresh.access_token),  # Access 토큰
+                'user_info': user_info_serializer.data  # 사용자 정보 반환
             }, status=status.HTTP_200_OK)  # 토큰과 함께 성공 응답 반환
 
         return Response({
             "message": "로그인에 실패했습니다.",
             "error": "유효하지 않은 자격 증명입니다. 이메일/전화번호 또는 비밀번호를 확인하세요."
         }, status=status.HTTP_400_BAD_REQUEST)  # 로그인 실패 시 오류 반환
+    
 
 
 class LogoutView(APIView):

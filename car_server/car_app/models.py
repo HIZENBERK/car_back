@@ -11,7 +11,7 @@ class CustomUser(AbstractUser):
     device_uuid = models.CharField(max_length=30)  # 단말기 UUID
     company_name = models.CharField(max_length=30)  # 회사명
     business_registration_number = models.CharField(max_length=30)  # 사업자 등록 번호
-    department = models.CharField(max_length=30)  # 부서명
+    department = models.CharField(max_length=30, blank=True)  # 부서명
     position = models.CharField(max_length=30)  # 직급
     name = models.CharField(max_length=30)  # 이름
     usage_distance = models.IntegerField(default=0)  # 사용 거리
@@ -40,10 +40,10 @@ class Vehicle(models.Model):
     license_plate_number = models.CharField(max_length=10, unique=True)  # 차량 번호(번호판)
     purchase_date = models.DateField()  # 구매 연/월/일
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2)  # 구매 가격
-    total_mileage = models.PositiveIntegerField()  # 총 주행 거리 (정수, 음수 불가)
+    total_mileage = models.PositiveIntegerField()  # 총 주행 거리, 누적 거리 (정수, 음수 불가)
     last_used_date = models.DateField(null=True, blank=True)  # 마지막 사용일 (비어 있을 수 있음)
     last_user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)  # 마지막 사용자 CustomUser 모델 참조
-    # 차량 유형 에: 매매, 리스, 렌트 중 선택
+    # 차량 유형 에: 매매, 리스, 렌트 중 선택(매매일 경우 선수금, 보증금, 만기일 비활성화)
     # 차량 현황 예 : '사용중', '사용가능', '수리중', '삭제(리스 만기 등으로 삭제 됨)'
     # 선수금 (null=True, blank=True)
     # 보증금 (null=True, blank=True)

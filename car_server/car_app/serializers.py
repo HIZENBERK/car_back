@@ -58,6 +58,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = [
+            'id',                         # 사용자 ID(자동 생성)
             'email',                      # 이메일
             'phone_number',               # 전화번호
             'device_uuid',                # 단말기 UUID
