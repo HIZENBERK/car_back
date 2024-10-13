@@ -1,36 +1,117 @@
 from rest_framework import serializers
-from .models import CustomUser, Vehicle, DrivingRecord
+from .models import Company, CustomUser, Vehicle, DrivingRecord
+from django.db import transaction
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
-# 회원가입 시 데이터를 검증하고 사용자 생성을 처리하는 Serializer
-class RegisterSerializer(serializers.ModelSerializer):
+
+
+
+# 회사 정보를 처리하는 Serializer
+class CompanySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Company
+        fields = [
+            'name',                      # 회사명
+            'business_registration_number',  # 사업자 등록 번호
+            'address'                   # 회사 주소
+        ]
+
+
+# 관리자 회원가입을 처리하는 Serializer
+class RegisterAdminSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})  # 비밀번호 필드
     password2 = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'}, label="Confirm Password")  # 비밀번호 확인 필드
+    company = CompanySerializer(required=True)  # 회사 정보 전체를 입력받음
 
     class Meta:
         model = CustomUser
         fields = [
-            'email',  # 이메일
-            'phone_number',  # 전화번호
-            'password',  # 비밀번호
-            'password2',  # 비밀번호 확인
-            'device_uuid',  # 단말기 UUID
-            'company_name',  # 법인명
-            'business_registration_number',  # 사업자등록번호
-            'department',  # 부서
-            'position',  # 직급
-            'name'  # 이름
+            'email',                     # 이메일
+            'phone_number',              # 전화번호
+            'password',                  # 비밀번호
+            'password2',                 # 비밀번호 확인
+            'company',                   # 회사 정보 (회사 정보 전체 입력)
+            'department',                # 부서명
+            'position',                  # 직급
+            'name'                       # 이름
         ]
-    
-    #이메일 중복 검증
+        extra_kwargs = {
+            'is_admin': {'default': True},  # 기본적으로 관리자로 설정
+        }
+
+    # 이메일 중복 검증
     def validate_email(self, value):
         if CustomUser.objects.filter(email=value).exists():
             raise serializers.ValidationError("이미 존재하는 이메일입니다.")
         return value
-    
-    #전화번호 중복 검증
+
+    # 전화번호 중복 검증
+    def validate_phone_number(self, value):
+        if CustomUser.objects.filter(phone_number=value).exists():
+            raise serializers.ValidationError("이미 존재하는 전화번호입니다.")
+        return value
+
+    # 비밀번호 검증
+    def validate(self, attrs):
+        if attrs['password'] != attrs['password2']:
+            raise serializers.ValidationError({"password": "Passwords do not match."})  # 비밀번호 일치 여부 확인
+        try:
+            validate_password(attrs['password'])  # Django 기본 비밀번호 유효성 검사
+        except ValidationError as e:
+            raise serializers.ValidationError({"password": e.messages})
+        return attrs
+
+    @transaction.atomic  # 트랜잭션 시작
+    def create(self, validated_data):
+        # 회사 정보 저장
+        company_data = validated_data.pop('company')
+        company, created = Company.objects.get_or_create(**company_data)
+
+        try:
+            # 관리자 정보 저장 시도
+            validated_data.pop('password2')
+            user = CustomUser(**validated_data)
+            user.company = company  # 회사 정보 연결
+            user.set_password(validated_data['password'])
+            user.is_admin = True  # 관리자로 설정
+            user.save()
+
+            return user
+        except Exception as e:
+            if created:
+                company.delete()  # 관리자 저장 실패 시, 새로 생성된 회사 정보 롤백
+            raise serializers.ValidationError({"error": "관리자 정보 저장에 실패했습니다. 오류: " + str(e)})
+
+
+# 일반 사용자 회원가입을 처리하는 Serializer
+class RegisterUserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+    password2 = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'}, label="Confirm Password")
+    company_name = serializers.CharField(write_only=True)  # 회사 이름을 입력받음
+
+    class Meta:
+        model = CustomUser
+        fields = [
+            'email',                     # 이메일
+            'phone_number',              # 전화번호
+            'password',                  # 비밀번호
+            'password2',                 # 비밀번호 확인
+            'company_name',              # 회사 이름 (회사 ID 대신 회사 이름으로 처리)
+            'department',                # 부서명
+            'position',                  # 직급
+            'name'                       # 이름
+        ]
+
+
+    # 이메일 중복 검증
+    def validate_email(self, value):
+        if CustomUser.objects.filter(email=value).exists():
+            raise serializers.ValidationError("이미 존재하는 이메일입니다.")
+        return value
+
+    # 전화번호 중복 검증
     def validate_phone_number(self, value):
         if CustomUser.objects.filter(phone_number=value).exists():
             raise serializers.ValidationError("이미 존재하는 전화번호입니다.")
@@ -45,30 +126,45 @@ class RegisterSerializer(serializers.ModelSerializer):
         except ValidationError as e:
             raise serializers.ValidationError({"password": e.messages})
         return attrs
-
-    # 사용자 생성 로직
+    
+    # 사용자 정보 저장
     def create(self, validated_data):
-        validated_data.pop('password2')  # 비밀번호 확인 필드를 제거
-        user = CustomUser(**validated_data)  # CustomUser 생성
-        user.set_password(validated_data['password'])  # 비밀번호 해싱
-        user.save()  # 데이터베이스에 저장
+        validated_data.pop('password2')
+
+        # 회사 이름을 통해 회사 객체를 가져옴
+        company_name = validated_data.pop('company_name')
+        company = Company.objects.filter(name=company_name).first()
+
+        if not company:
+            raise serializers.ValidationError({"company_name": "해당 회사가 존재하지 않습니다."})
+
+        # 사용자 생성
+        user = CustomUser(**validated_data)
+        user.company = company  # 회사 정보 연결
+        user.is_admin = False  # 일반 사용자로 설정
+        user.set_password(validated_data['password'])
+        user.save()
+
         return user
 
+
+# 사용자 정보 조회 시리얼라이저
 class CustomUserSerializer(serializers.ModelSerializer):
+    company = CompanySerializer()  # 회사 정보 포함
+
     class Meta:
         model = CustomUser
         fields = [
-            'id',                         # 사용자 ID(자동 생성)
-            'email',                      # 이메일
-            'phone_number',               # 전화번호
-            'device_uuid',                # 단말기 UUID
-            'company_name',               # 회사명
-            'business_registration_number', # 사업자 등록 번호
-            'department',                 # 부서명
-            'position',                   # 직급
-            'name',                       # 이름
-            'usage_distance',             # 사용 거리
-            'unpaid_penalties'            # 미납 과태료
+            'id',                       # 사용자 ID (자동 생성)
+            'email',                    # 이메일
+            'phone_number',             # 전화번호
+            'company',                  # 회사 정보 (회사 시리얼라이저로 처리)
+            'is_admin',                 # 관리자 여부
+            'department',               # 부서명
+            'position',                 # 직급
+            'name',                     # 이름
+            'usage_distance',           # 사용 거리
+            'unpaid_penalties'          # 미납 과태료
         ]
 
 
@@ -87,27 +183,41 @@ class LoginSerializer(serializers.Serializer):
 
         if user and user.check_password(password):  # 비밀번호 확인
             return user  # 사용자 반환
-        raise serializers.ValidationError("Invalid login credentials.")  # 로그인 실패 시 오류 발생
+        raise serializers.ValidationError("로그인 정보가 올바르지 않습니다.")  # 로그인 실패 시 오류 발생
 
 
 # 차량 정보를 처리하는 Serializer
 class VehicleSerializer(serializers.ModelSerializer):
+    company_name = serializers.SlugRelatedField(queryset=Company.objects.all(), slug_field='name', source='company')  # 회사명으로 연결
+
     class Meta:
         model = Vehicle
         fields = [
-            'id',               # 차량 ID (자동 생성)
-            'vehicle_category',       # 차량 카테고리 (내연기관차, 전기차, 수소차 등)
-            'vehicle_type',      # 차량 종류
-            'car_registration_number',  # 자동차 등록번호
-            'license_plate_number',  # 차량 번호(번호판)
-            'purchase_date',     # 구매 연/월/일
-            'purchase_price',    # 구매 가격
-            'total_mileage',     # 총 주행 거리 (정수, 음수 불가)
-            'last_used_date',    # 마지막 사용일 (비어 있을 수 있음)
-            'last_user',         # 마지막 사용자 (CustomUser 참조)
+            'id',                     # 차량 ID (자동 생성)
+            'vehicle_category',        # 차량 카테고리 (내연기관, 전기차, 수소차 등)
+            'vehicle_type',            # 차종 (예: K3, 아반떼 등)
+            'car_registration_number', # 자동차 등록번호
+            'license_plate_number',    # 차량 번호(번호판)
+            'purchase_date',           # 구매 연/월/일
+            'purchase_price',          # 구매 가격
+            'total_mileage',           # 총 주행 거리
+            'last_used_date',          # 마지막 사용일
+            'last_user',               # 마지막 사용자 (자동 설정)
+            'chassis_number',          # 차대 번호
+            'purchase_type',           # 구매 유형 (매매, 리스, 렌트 등)
+            'down_payment',            # 선수금
+            'deposit',                 # 보증금
+            'expiration_date',         # 만기일
+            'company_name'             # 회사명 (작성 시 입력)
         ]
-        read_only_fields = ['last_user']  # 마지막 사용자는 자동으로 기록될 수 있음
+        read_only_fields = ['last_user']  # 마지막 사용자는 자동으로 설정되므로 읽기 전용
 
+    def create(self, validated_data):
+        company = validated_data.pop('company')
+        vehicle = Vehicle.objects.create(**validated_data)
+        vehicle.company = company
+        vehicle.save()
+        return vehicle
 
 # 운행 기록을 처리하는 Serializer
 class DrivingRecordSerializer(serializers.ModelSerializer):

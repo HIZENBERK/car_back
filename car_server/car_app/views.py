@@ -2,26 +2,27 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
-from .serializers import RegisterSerializer, CustomUserSerializer, LoginSerializer, VehicleSerializer, DrivingRecordSerializer
-from .models import CustomUser, Vehicle, DrivingRecord
+from .serializers import RegisterAdminSerializer, RegisterUserSerializer, CustomUserSerializer, LoginSerializer, VehicleSerializer, DrivingRecordSerializer
+from .models import Company, CustomUser, Vehicle, DrivingRecord
 from django.db.utils import IntegrityError
 
 
-# 회원가입 요청을 처리하는 View
-class RegisterView(APIView):
+# 관리자 회원가입을 처리하는 View
+class RegisterAdminView(APIView):
     """
-    회원가입 View
-    사용자 데이터를 검증하고, 새로운 사용자 계정을 생성한다.
+    관리자 회원가입 View
+    회사 정보와 관리자의 정보를 검증한 후 새로운 관리자 계정을 생성한다.
     """
     def post(self, request):
-        serializer = RegisterSerializer(data=request.data)  # 클라이언트로부터 받은 데이터를 시리얼라이저로 전달
+        serializer = RegisterAdminSerializer(data=request.data)  # 클라이언트로부터 받은 데이터를 시리얼라이저로 전달
         if serializer.is_valid():  # 데이터가 유효한지 검증
             try:
-                serializer.save()  # 데이터베이스에 사용자 저장
+                user = serializer.save()  # 관리자 정보 저장
                 return Response({
-                    "message": "회원가입이 성공적으로 완료되었습니다.",
-                    "user": serializer.data
+                    "message": "관리자 회원가입이 성공적으로 완료되었습니다.",
+                    "user": CustomUserSerializer(user).data  # 저장된 관리자 정보 반환
                 }, status=status.HTTP_201_CREATED)
             except IntegrityError as e:  # IntegrityError 처리
                 error_message = str(e)
@@ -32,25 +33,98 @@ class RegisterView(APIView):
                     message = "이미 사용 중인 전화번호입니다."
                 else:
                     message = "데이터베이스 무결성 오류가 발생했습니다."
-
                 return Response({
                     "message": "회원가입에 실패했습니다.",
-                    "error": message  # 한글로 변환된 오류 메시지 반환
+                    "error": message
                 }, status=status.HTTP_400_BAD_REQUEST)
         return Response({
             "message": "회원가입에 실패했습니다.",
+            "errors": serializer.errors  # 유효성 검사 오류 반환
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+# 관리자 전용 로그인 View
+class AdminLoginView(APIView):
+    """
+    관리자 전용 로그인 View
+    이메일 또는 전화번호와 비밀번호를 받아 관리자 여부를 확인하고 JWT 토큰을 발급한다.
+    """
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)  # 클라이언트로부터 받은 데이터를 시리얼라이저로 전달
+        if serializer.is_valid(raise_exception=True):  # 데이터 검증
+            user = serializer.validated_data  # 검증된 사용자 데이터
+
+            # 관리자 여부 확인
+            if not user.is_admin:
+                return Response({
+                    "message": "관리자 전용 페이지입니다. 관리자 계정으로 로그인하세요.",
+                    "error": "해당 계정은 관리자 권한이 없습니다."
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            refresh = RefreshToken.for_user(user)  # 사용자로부터 JWT 토큰 생성
+            user_info_serializer = CustomUserSerializer(user)  # 사용자 정보 시리얼라이저
+
+            return Response({
+                "message": "관리자 로그인이 성공적으로 완료되었습니다.",
+                'refresh': str(refresh),  # Refresh 토큰
+                'access': str(refresh.access_token),  # Access 토큰
+                'user_info': user_info_serializer.data  # 사용자 정보 반환
+            }, status=status.HTTP_200_OK)
+
+        return Response({
+            "message": "로그인에 실패했습니다.",
+            "error": "유효하지 않은 자격 증명입니다. 이메일/전화번호 또는 비밀번호를 확인하세요."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+# 일반 사용자 회원가입을 처리하는 View (관리자 전용)
+class RegisterUserView(APIView):
+    """
+    일반 사용자 회원가입 View
+    관리자가 일반 사용자의 회원가입을 대신 처리한다.
+    """
+    def post(self, request):
+        serializer = RegisterUserSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                user = serializer.save()  # 사용자 정보 저장
+                return Response({
+                    "message": "사용자 회원가입이 성공적으로 완료되었습니다.",
+                    "user": CustomUserSerializer(user).data
+                }, status=status.HTTP_201_CREATED)
+            except IntegrityError as e:
+                error_message = str(e)
+                # 이메일 및 전화번호 중복 처리
+                if 'customuser.email' in error_message:
+                    message = "이미 사용 중인 이메일입니다."
+                elif 'customuser.phone_number' in error_message:
+                    message = "이미 사용 중인 전화번호입니다."
+                else:
+                    message = "데이터베이스 무결성 오류가 발생했습니다."
+                return Response({
+                    "message": "사용자 회원가입에 실패했습니다.",
+                    "error": message
+                }, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            "message": "사용자 회원가입에 실패했습니다.",
             "errors": serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
 
+
+#회원 정보 조회, 수정, 삭제 처리
 class UserListView(APIView):
     """
     GET: 전체 회원 정보 조회
     PATCH: 특정 회원 정보 수정
     DELETE: 특정 회원 삭제
     """
+    permission_classes = [IsAuthenticated]
     def get(self, request):
         try:
-            users = CustomUser.objects.all()  # 모든 사용자 정보 가져오기
+            # 로그인한 관리자의 회사 정보 기준으로 같은 회사의 사용자들만 가져오기
+            company = request.user.company  # 로그인한 사용자의 회사 정보 가져오기
+            users = CustomUser.objects.filter(company=company)  # 같은 회사의 사용자들만 필터링
             if users.exists():  # 사용자가 있는 경우
                 serializer = CustomUserSerializer(users, many=True)  # 시리얼라이저로 데이터 직렬화
                 return Response({
@@ -108,7 +182,8 @@ class UserListView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
             
-# 로그인 요청을 처리하는 View
+            
+# 로그인 요청을 처리하는 View (일반 사용자 전용)
 class LoginView(APIView):
     """
     로그인 View
@@ -118,8 +193,11 @@ class LoginView(APIView):
         serializer = LoginSerializer(data=request.data)  # 클라이언트로부터 받은 데이터를 시리얼라이저로 전달
         if serializer.is_valid(raise_exception=True):  # 데이터 검증
             user = serializer.validated_data  # 검증된 사용자 데이터
-            refresh = RefreshToken.for_user(user)  # 사용자로부터 JWT 토큰 생성
-            user_info_serializer = CustomUserSerializer(user) # 사용자 정보 시리얼라이저
+
+            # JWT 토큰 생성
+            refresh = RefreshToken.for_user(user)
+            user_info_serializer = CustomUserSerializer(user)  # 사용자 정보 시리얼라이저
+
             return Response({
                 "message": "로그인이 성공적으로 완료되었습니다.",
                 'refresh': str(refresh),  # Refresh 토큰
@@ -131,7 +209,6 @@ class LoginView(APIView):
             "message": "로그인에 실패했습니다.",
             "error": "유효하지 않은 자격 증명입니다. 이메일/전화번호 또는 비밀번호를 확인하세요."
         }, status=status.HTTP_400_BAD_REQUEST)  # 로그인 실패 시 오류 반환
-    
 
 
 class LogoutView(APIView):
@@ -223,18 +300,18 @@ class VehicleByLicensePlateView(APIView):
             vehicle = get_object_or_404(Vehicle, license_plate_number=license_plate_number)
             serializer = VehicleSerializer(vehicle)
             return Response({
-                "message": "차량 조회가 성공적으로 완료되었습니다.",
                 "vehicle": serializer.data
             }, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({
                 "message": "차량 조회에 실패했습니다.",
-                "error": "요청한 번호판에 해당하는 차량을 찾을 수 없습니다."
+                "error": str(e)  # 예외 메시지 반환
             }, status=status.HTTP_404_NOT_FOUND)
 
     def put(self, request, license_plate_number):
         try:
-            vehicle = get_object_or_404(Vehicle, license_plate_number=license_plate_number)  # 번호판으로 차량 조회
+            # 번호판으로 차량 조회
+            vehicle = get_object_or_404(Vehicle, license_plate_number=license_plate_number)
             serializer = VehicleSerializer(vehicle, data=request.data, partial=True)  # 부분 업데이트 허용
             if serializer.is_valid():
                 if request.user.is_authenticated:
@@ -251,13 +328,14 @@ class VehicleByLicensePlateView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({
-                "message": "차량 수정에 실패했습니다.",
-                "error": str(e)
+                "message": "차량 정보 수정에 실패했습니다.",
+                "error": str(e)  # 예외 메시지 반환
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, license_plate_number):
         try:
-            vehicle = get_object_or_404(Vehicle, license_plate_number=license_plate_number)  # 번호판으로 차량 조회
+            # 번호판으로 차량 조회 후 삭제
+            vehicle = get_object_or_404(Vehicle, license_plate_number=license_plate_number)
             vehicle.delete()  # 차량 삭제
             return Response({
                 "message": "차량이 성공적으로 삭제되었습니다."
@@ -265,7 +343,7 @@ class VehicleByLicensePlateView(APIView):
         except Exception as e:
             return Response({
                 "message": "차량 삭제에 실패했습니다.",
-                "error": str(e)
+                "error": str(e)  # 예외 메시지 반환
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -296,6 +374,7 @@ class DrivingRecordListCreateView(APIView):
             "message": "운행 기록 생성에 실패했습니다.",
             "errors": serializer.errors  # 유효성 검사 오류 반환
         }, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 # 특정 운행 기록 조회, 수정 및 삭제 처리
