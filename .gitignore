@@ -3,3 +3,4 @@
 /venv/
 /.venv/
 /car_server/car_app/migrations/
+/car_server/db.sqlite3
