@@ -22,7 +22,7 @@ class CustomUser(AbstractUser):
     email = models.EmailField(unique=True)  # 이메일 필드를 고유값으로 설정
     phone_number = models.CharField(max_length=30, unique=True)  # 전화번호 (고유값)
     department = models.CharField(max_length=30, blank=True)  # 부서명
-    position = models.CharField(max_length=30, blank=True)  # 직급
+    position = models.CharField(max_length=30)  # 직급
     name = models.CharField(max_length=30)  # 이름
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, null=True, blank=True)  # 회사 모델과의 관계 (선택적)
     usage_distance = models.IntegerField(default=0)  # 사용 거리
@@ -66,7 +66,7 @@ class Vehicle(models.Model):
     deposit = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # 보증금 (위치를 변경)
     expiration_date = models.DateField(null=True, blank=True)  # 만기일
     # 차량 등록시 등록일 정보 입력도 있는데 이는 구매 연/월/일로 임시 대체 함
-    # 차량 현재 상황을 나타내는 필드 추가해야함(가용차량, 사용불가, 삭제)
+    # 차량 현재 상황을 나타내는 필드 추가해야함
 
     def __str__(self):
         return f'{self.vehicle_type} - {self.license_plate_number}'
@@ -75,7 +75,7 @@ class Vehicle(models.Model):
 # 차량 정기 검사 모델
 class RegularInspection(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)  # 차량 참조 (Vehicle 모델 참조)
-    inspection_date = models.DateField()  # 정기 검사 만료일
+    inspection_date = models.DateField()  # 정기 검사 날짜
     inspection_agency = models.CharField(max_length=30)  # 검사 기관
     inspection_result = models.BooleanField()  # 검사 결과 (합격/불합격)
 
@@ -83,13 +83,6 @@ class RegularInspection(models.Model):
         return f'{self.vehicle.vehicle_type} - {self.inspection_date} 정기 검사'
 """
 
-"""
-# 차량 정기 검사 등록(게시판 느낌) 모델
-정비일자
-정비내용(예 : 타이어 교체)
-누적주행거리
-금액
-"""
 
 # 운행 기록 모델
 class DrivingRecord(models.Model):
@@ -103,8 +96,6 @@ class DrivingRecord(models.Model):
     departure_time = models.DateTimeField() # 출발 시간
     arrival_time = models.DateTimeField() # 도착 시간
     driving_time = models.DurationField(editable=False) # 운행 시간 (도착 시간 - 출발 시간)
-    #json코드로 저장할 출발지 부터 도착지 까지 일정시간마다 저장할 좌표 필드 추가해야함 - 이러면 운행거리랑 생각을 해봐야 함
-    
     
     # 운행 목적 Choices 설정
     COMMUTING = 'commuting'

@@ -85,25 +85,10 @@ class RegisterUserView(APIView):
     관리자가 일반 사용자의 회원가입을 대신 처리한다.
     """
     def post(self, request):
-        admin = request.user  # 현재 로그인한 관리자
-        if not admin.is_admin:  # 관리자인지 확인
-            return Response({
-                "message": "관리자만 사용자를 등록할 수 있습니다."
-            }, status=status.HTTP_403_FORBIDDEN)
-
         serializer = RegisterUserSerializer(data=request.data)
         if serializer.is_valid():
-            
-            user_company = serializer.validated_data.get('company') # 관리자의 회사와 사용자의 회사가 일치하는지 확인
-            if user_company != admin.company:
-                return Response({
-                    "message": "관리자와 같은 회사 소속의 사용자만 등록할 수 있습니다."
-                }, status=status.HTTP_403_FORBIDDEN)
-                
             try:
                 user = serializer.save()  # 사용자 정보 저장
-                user.company = admin.company  # 관리자의 회사 정보 설정
-                user.save()
                 return Response({
                     "message": "사용자 회원가입이 성공적으로 완료되었습니다.",
                     "user": CustomUserSerializer(user).data
@@ -135,6 +120,7 @@ class UserListView(APIView):
     DELETE: 특정 회원 삭제
     """
     permission_classes = [IsAuthenticated]
+    
     def get(self, request):
         try:
             # 로그인한 관리자의 회사 정보 기준으로 같은 회사의 사용자들만 가져오기
@@ -160,11 +146,6 @@ class UserListView(APIView):
         """
         특정 회원 정보 수정
         """
-        admin = request.user  # 현재 로그인한 관리자
-        if not admin.is_admin:  # 관리자인지 확인
-            return Response({
-                "message": "관리자만 사용자를 수정할 수 있습니다."
-            }, status=status.HTTP_403_FORBIDDEN)
         try:
             user = get_object_or_404(CustomUser, pk=pk)  # 회원 정보 조회
             serializer = CustomUserSerializer(user, data=request.data, partial=True)  # 부분 업데이트 허용
@@ -189,11 +170,6 @@ class UserListView(APIView):
         """
         특정 회원 삭제
         """
-        admin = request.user  # 현재 로그인한 관리자
-        if not admin.is_admin:  # 관리자인지 확인
-            return Response({
-                "message": "관리자만 사용자를 삭제할 수 있습니다."
-            }, status=status.HTTP_403_FORBIDDEN)
         try:
             user = get_object_or_404(CustomUser, pk=pk)  # 회원 정보 조회
             user.delete()  # 회원 삭제
