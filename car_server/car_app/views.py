@@ -94,7 +94,7 @@ class RegisterUserView(APIView):
         serializer = RegisterUserSerializer(data=request.data)
         if serializer.is_valid():
             
-            user_company = serializer.validated_data.get('company') # 관리자의 회사와 사용자의 회사가 일치하는지 확인
+            user_company = serializer.validated_data.get('company_name') # 관리자의 회사와 사용자의 회사가 일치하는지 확인
             if user_company != admin.company:
                 return Response({
                     "message": "관리자와 같은 회사 소속의 사용자만 등록할 수 있습니다."
