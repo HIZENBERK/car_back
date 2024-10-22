@@ -91,19 +91,12 @@ class RegisterUserView(APIView):
                 "message": "관리자만 사용자를 등록할 수 있습니다."
             }, status=status.HTTP_403_FORBIDDEN)
 
-        serializer = RegisterUserSerializer(data=request.data)
+        # 관리자 정보를 context로 전달하여 Serializer에 넘김
+        serializer = RegisterUserSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            
-            user_company = serializer.validated_data.get('company_name') # 관리자의 회사와 사용자의 회사가 일치하는지 확인
-            if user_company != admin.company:
-                return Response({
-                    "message": "관리자와 같은 회사 소속의 사용자만 등록할 수 있습니다."
-                }, status=status.HTTP_403_FORBIDDEN)
-                
             try:
+                # 회사 정보는 관리자 정보에서 자동으로 추가됨
                 user = serializer.save()  # 사용자 정보 저장
-                user.company = admin.company  # 관리자의 회사 정보 설정
-                user.save()
                 return Response({
                     "message": "사용자 회원가입이 성공적으로 완료되었습니다.",
                     "user": CustomUserSerializer(user).data

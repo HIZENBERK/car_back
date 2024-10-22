@@ -89,7 +89,7 @@ class RegisterAdminSerializer(serializers.ModelSerializer):
 class RegisterUserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
     password2 = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'}, label="Confirm Password")
-    company_name = serializers.CharField(write_only=True)  # 회사 이름을 입력받음
+    company_name = serializers.CharField(source='company.name', read_only=True)  # 회사명만 포함 (읽기 전용)
 
     class Meta:
         model = CustomUser
@@ -98,12 +98,11 @@ class RegisterUserSerializer(serializers.ModelSerializer):
             'phone_number',              # 전화번호
             'password',                  # 비밀번호
             'password2',                 # 비밀번호 확인
-            'company_name',              # 회사 이름 (회사 ID 대신 회사 이름으로 처리)
+            'company_name',              # 회사 이름 (읽기 전용)
             'department',                # 부서명
             'position',                  # 직급
             'name'                       # 이름
         ]
-
 
     # 이메일 중복 검증
     def validate_email(self, value):
@@ -116,31 +115,27 @@ class RegisterUserSerializer(serializers.ModelSerializer):
         if CustomUser.objects.filter(phone_number=value).exists():
             raise serializers.ValidationError("이미 존재하는 전화번호입니다.")
         return value
-    
+
     # 비밀번호 검증
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({"password": "Passwords do not match."})  # 비밀번호 일치 여부 확인
+            raise serializers.ValidationError({"password": "비밀번호가 일치하지 않습니다."})
         try:
             validate_password(attrs['password'])  # Django 기본 비밀번호 유효성 검사
         except ValidationError as e:
             raise serializers.ValidationError({"password": e.messages})
         return attrs
-    
+
     # 사용자 정보 저장
     def create(self, validated_data):
-        validated_data.pop('password2')
-
-        # 회사 이름을 통해 회사 객체를 가져옴
-        company_name = validated_data.pop('company_name')
-        company = Company.objects.filter(name=company_name).first()
-
-        if not company:
-            raise serializers.ValidationError({"company_name": "해당 회사가 존재하지 않습니다."})
+        validated_data.pop('password2')  # 비밀번호 확인 필드 제거
+        request = self.context.get('request')  # 요청 객체 가져오기
+        admin_user = request.user  # 현재 로그인한 관리자
+        company = admin_user.company  # 관리자의 회사 정보 가져오기
 
         # 사용자 생성
         user = CustomUser(**validated_data)
-        user.company = company  # 회사 정보 연결
+        user.company = company  # 관리자의 회사 정보 설정
         user.is_admin = False  # 일반 사용자로 설정
         user.set_password(validated_data['password'])
         user.save()
