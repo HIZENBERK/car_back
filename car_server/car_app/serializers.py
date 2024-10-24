@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Company, CustomUser, Vehicle, DrivingRecord
+from .models import Company, CustomUser, Notice, Vehicle, DrivingRecord
 from django.db import transaction
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
@@ -19,11 +19,14 @@ class CompanySerializer(serializers.ModelSerializer):
         ]
 
 
+
 # 관리자 회원가입을 처리하는 Serializer
 class RegisterAdminSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})  # 비밀번호 필드
     password2 = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'}, label="Confirm Password")  # 비밀번호 확인 필드
-    company = CompanySerializer(required=True)  # 회사 정보 전체를 입력받음
+    business_registration_number = serializers.CharField(write_only=True, required=True)  # 사업자 등록번호를 별도로 입력받음
+    company_name = serializers.CharField(write_only=True, required=True)  # 회사명을 별도로 입력받음
+    company_address = serializers.CharField(write_only=True, required=False)  # 회사 주소 입력 (선택적)
 
     class Meta:
         model = CustomUser
@@ -32,7 +35,9 @@ class RegisterAdminSerializer(serializers.ModelSerializer):
             'phone_number',              # 전화번호
             'password',                  # 비밀번호
             'password2',                 # 비밀번호 확인
-            'company',                   # 회사 정보 (회사 정보 전체 입력)
+            'business_registration_number',  # 사업자 등록번호
+            'company_name',              # 회사명
+            'company_address',           # 회사 주소 (선택적)
             'department',                # 부서명
             'position',                  # 직급
             'name'                       # 이름
@@ -65,9 +70,15 @@ class RegisterAdminSerializer(serializers.ModelSerializer):
 
     @transaction.atomic  # 트랜잭션 시작
     def create(self, validated_data):
-        # 회사 정보 저장
-        company_data = validated_data.pop('company')
-        company, created = Company.objects.get_or_create(**company_data)
+        # 회사 정보 저장 또는 조회
+        business_registration_number = validated_data.pop('business_registration_number')
+        company_name = validated_data.pop('company_name')
+        company_address = validated_data.pop('company_address', '')
+
+        company, created = Company.objects.get_or_create(
+            business_registration_number=business_registration_number,
+            defaults={'name': company_name, 'address': company_address}
+        )
 
         try:
             # 관리자 정보 저장 시도
@@ -83,6 +94,7 @@ class RegisterAdminSerializer(serializers.ModelSerializer):
             if created:
                 company.delete()  # 관리자 저장 실패 시, 새로 생성된 회사 정보 롤백
             raise serializers.ValidationError({"error": "관리자 정보 저장에 실패했습니다. 오류: " + str(e)})
+
 
 
 # 일반 사용자 회원가입을 처리하는 Serializer
@@ -143,6 +155,7 @@ class RegisterUserSerializer(serializers.ModelSerializer):
         return user
 
 
+
 # 사용자 정보 조회 시리얼라이저
 class CustomUserSerializer(serializers.ModelSerializer):
     company = CompanySerializer()  # 회사 정보 포함
@@ -163,6 +176,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
         ]
 
 
+
 # 로그인 시 데이터를 검증하고 JWT 토큰을 반환하는 Serializer
 class LoginSerializer(serializers.Serializer):
     email_or_phone = serializers.CharField()  # 이메일 또는 전화번호
@@ -179,6 +193,35 @@ class LoginSerializer(serializers.Serializer):
         if user and user.check_password(password):  # 비밀번호 확인
             return user  # 사용자 반환
         raise serializers.ValidationError("로그인 정보가 올바르지 않습니다.")  # 로그인 실패 시 오류 발생
+
+
+
+# 공지사항 Serializer
+class NoticeSerializer(serializers.ModelSerializer):
+    company_name = serializers.SerializerMethodField()  # 회사 이름을 반환하는 필드 추가
+    created_by_name = serializers.SerializerMethodField()  # 작성자 이름을 반환하는 필드 추가
+    
+    class Meta:
+        model = Notice  # 공지사항 모델과 연결
+        fields = [  # 시리얼라이저에 포함할 필드 목록
+            'company_name',  # 공지사항을 등록한 회사 (회사 정보)
+            'title',  # 공지사항 제목
+            'content',  # 공지사항 내용
+            'created_at',  # 공지사항 생성 일시
+            'updated_at',  # 공지사항 수정 일시
+            'created_by_name'  # 공지사항 작성자 정보
+        ]
+        read_only_fields = [  # 읽기 전용 필드 (자동으로 설정되는 값)
+            'created_at',  # 생성 일시는 자동 생성되므로 읽기 전용
+            'updated_at',  # 수정 일시는 자동 갱신되므로 읽기 전용
+        ]
+        
+    def get_company_name(self, obj):
+        return obj.company.name  # 회사 이름 반환
+
+    def get_created_by_name(self, obj):
+        return obj.created_by.name  # 작성자 이름 반환
+
 
 
 # 차량 정보를 처리하는 Serializer
@@ -213,6 +256,8 @@ class VehicleSerializer(serializers.ModelSerializer):
         vehicle.company = company
         vehicle.save()
         return vehicle
+
+
 
 # 운행 기록을 처리하는 Serializer
 class DrivingRecordSerializer(serializers.ModelSerializer):

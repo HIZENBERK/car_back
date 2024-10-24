@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RegisterAdminView, AdminLoginView, RegisterUserView, UserListView, LoginView, LogoutView, VehicleListCreateView, VehicleByLicensePlateView, DrivingRecordListCreateView, DrivingRecordDetailView
+from .views import RegisterAdminView, AdminLoginView, RegisterUserView, UserListView, LoginView, LogoutView, NoticeListCreateView, NoticeListView, NoticeDetailView, VehicleListCreateView, VehicleByLicensePlateView, DrivingRecordListCreateView, DrivingRecordDetailView
 
 # 회원가입 및 로그인 관련 URL 경로 설정
 urlpatterns = [
@@ -13,6 +13,11 @@ urlpatterns = [
     path('users/', UserListView.as_view(), name='user-list'), # 전체 회원 정보 조회
     path('login/', LoginView.as_view(), name='login'),  # 로그인 경로
     path('logout/', LogoutView.as_view(), name='logout'),  # 로그아웃 URL 설정
+    
+    # 공지사항 관련
+    path('notices/create/', NoticeListCreateView.as_view(), name='notice-list-create'),  # 회사별 공지사항 생성
+    path('notices/all/', NoticeListView.as_view(), name='notice-list'),  # 전체 공지사항 목록 조회 (로그인한 사용자의 회사에 한정)
+    path('notices/<int:pk>/', NoticeDetailView.as_view(), name='notice-detail'),  # 공지사항 상세 조회, 수정, 삭제
     
     # 차량관련
     path('vehicles/', VehicleListCreateView.as_view(), name='vehicle-list-create'),  # 차량 등록 및 전체 목록 조회

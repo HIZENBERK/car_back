@@ -2,10 +2,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
-from .serializers import RegisterAdminSerializer, RegisterUserSerializer, CustomUserSerializer, LoginSerializer, VehicleSerializer, DrivingRecordSerializer
-from .models import Company, CustomUser, Vehicle, DrivingRecord
+from .serializers import RegisterAdminSerializer, RegisterUserSerializer, CustomUserSerializer, LoginSerializer, NoticeSerializer, VehicleSerializer, DrivingRecordSerializer
+from .models import Company, CustomUser, Notice, Vehicle, DrivingRecord
 from django.db.utils import IntegrityError
 
 
@@ -43,12 +43,14 @@ class RegisterAdminView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 
+
 # 관리자 전용 로그인 View
 class AdminLoginView(APIView):
     """
     관리자 전용 로그인 View
     이메일 또는 전화번호와 비밀번호를 받아 관리자 여부를 확인하고 JWT 토큰을 발급한다.
     """
+    permission_classes = [AllowAny]  # 모든 사용자에게 접근 허용
     def post(self, request):
         serializer = LoginSerializer(data=request.data)  # 클라이언트로부터 받은 데이터를 시리얼라이저로 전달
         if serializer.is_valid(raise_exception=True):  # 데이터 검증
@@ -118,6 +120,7 @@ class RegisterUserView(APIView):
             "message": "사용자 회원가입에 실패했습니다.",
             "errors": serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 #회원 정보 조회, 수정, 삭제 처리
@@ -198,9 +201,9 @@ class UserListView(APIView):
                 "message": "회원 삭제 중 오류가 발생했습니다.",
                 "error": str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-            
-            
+
+
+
 # 로그인 요청을 처리하는 View (일반 사용자 전용)
 class LoginView(APIView):
     """
@@ -227,6 +230,7 @@ class LoginView(APIView):
             "message": "로그인에 실패했습니다.",
             "error": "유효하지 않은 자격 증명입니다. 이메일/전화번호 또는 비밀번호를 확인하세요."
         }, status=status.HTTP_400_BAD_REQUEST)  # 로그인 실패 시 오류 반환
+
 
 
 class LogoutView(APIView):
@@ -256,6 +260,114 @@ class LogoutView(APIView):
                 "message": "로그아웃에 실패했습니다.",
                 "error": "잘못된 토큰이거나 토큰 처리 중 문제가 발생했습니다."
             }, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+# 공지사항 생성 뷰 및 회사별 공지사항 조회 뷰
+class NoticeListCreateView(APIView):
+    permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
+    
+
+    def post(self, request):
+        # 관리자가 공지사항을 생성할 수 있도록 권한 확인
+        if not request.user.is_admin:
+            return Response({
+                "message": "관리자만 공지사항을 생성할 수 있습니다."  # 관리자가 아닌 경우 접근 거부 메시지
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # 공지사항 데이터 유효성 검사 및 저장
+        serializer = NoticeSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(company=request.user.company, created_by=request.user)  # 공지사항 저장 시 회사와 작성자 정보 자동 설정
+            return Response({
+                "message": "공지사항이 성공적으로 생성되었습니다.",  # 성공 메시지 반환
+                "notice": serializer.data  # 생성된 공지사항 데이터 반환
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            "message": "공지사항 생성에 실패했습니다.",  # 실패 메시지 반환
+            "errors": serializer.errors  # 유효성 검사 오류 반환
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+# 전체 공지사항 목록 조회 뷰
+class NoticeListView(APIView):
+    permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
+
+    def get(self, request):
+        # 로그인한 사용자가 속한 회사의 공지사항 전체 조회
+        company = request.user.company  # 로그인한 사용자의 회사 정보 가져오기
+        notices = Notice.objects.filter(company=company)  # 해당 회사의 공지사항 필터링
+        data = notices.values('title', 'created_at', 'created_by__name')  # 제목, 생성일, 작성자 이름만 가져오기
+        return Response({
+            "message": "공지사항 목록 조회가 성공적으로 완료되었습니다.",  # 성공 메시지 반환
+            "notices": list(data)  # 공지사항 목록 반환 (제목, 작성일, 작성자)
+        }, status=status.HTTP_200_OK)
+
+# 공지사항 상세 조회, 수정 및 삭제 뷰
+class NoticeDetailView(APIView):
+    permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
+
+    def get_object(self, pk, company):
+        # 특정 공지사항을 가져오는 함수 (해당 회사의 공지사항인지 확인)
+        try:
+            return Notice.objects.get(pk=pk, company=company)  # 공지사항 ID와 회사 정보를 기준으로 조회
+        except Notice.DoesNotExist:
+            return None  # 공지사항이 존재하지 않는 경우 None 반환
+
+    def get(self, request, pk):
+        # 특정 공지사항 상세 조회
+        notice = self.get_object(pk, request.user.company)  # 로그인한 사용자의 회사에 속한 공지사항인지 확인
+        if not notice:
+            return Response({
+                "message": "공지사항을 찾을 수 없습니다."  # 공지사항이 없을 경우 오류 메시지 반환
+            }, status=status.HTTP_404_NOT_FOUND)
+        serializer = NoticeSerializer(notice)  # 공지사항 직렬화
+        return Response({
+            "notice": serializer.data  # 공지사항 데이터 반환
+        }, status=status.HTTP_200_OK)
+
+    def put(self, request, pk):
+        # 공지사항 수정 (관리자만 가능하며, 해당 회사의 공지사항만 수정 가능)
+        if not request.user.is_admin:
+            return Response({
+                "message": "관리자만 공지사항을 수정할 수 있습니다."  # 관리자가 아닌 경우 접근 거부 메시지
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        notice = self.get_object(pk, request.user.company)  # 로그인한 사용자의 회사에 속한 공지사항인지 확인
+        if not notice:
+            return Response({
+                "message": "공지사항을 찾을 수 없습니다."  # 공지사항이 없을 경우 오류 메시지 반환
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # 공지사항 데이터 유효성 검사 및 수정
+        serializer = NoticeSerializer(notice, data=request.data, partial=True)  # 부분 업데이트 허용
+        if serializer.is_valid():
+            serializer.save()  # 수정된 공지사항 저장
+            return Response({
+                "message": "공지사항이 성공적으로 수정되었습니다.",  # 성공 메시지 반환
+                "notice": serializer.data  # 수정된 공지사항 데이터 반환
+            }, status=status.HTTP_200_OK)
+        return Response({
+            "message": "공지사항 수정에 실패했습니다.",  # 실패 메시지 반환
+            "errors": serializer.errors  # 유효성 검사 오류 반환
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        # 공지사항 삭제 (관리자만 가능하며, 해당 회사의 공지사항만 삭제 가능)
+        if not request.user.is_admin:
+            return Response({
+                "message": "관리자만 공지사항을 삭제할 수 있습니다."  # 관리자가 아닌 경우 접근 거부 메시지
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        notice = self.get_object(pk, request.user.company)  # 로그인한 사용자의 회사에 속한 공지사항인지 확인
+        if not notice:
+            return Response({
+                "message": "공지사항을 찾을 수 없습니다."  # 공지사항이 없을 경우 오류 메시지 반환
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        notice.delete()  # 공지사항 삭제
+        return Response({
+            "message": "공지사항이 성공적으로 삭제되었습니다."  # 성공 메시지 반환
+        }, status=status.HTTP_204_NO_CONTENT)
 
 
 

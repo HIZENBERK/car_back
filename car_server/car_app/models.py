@@ -19,7 +19,7 @@ class Company(models.Model):
 # Django 기본 User 모델을 확장하여 필요한 사용자 정보 필드를 추가
 class CustomUser(AbstractUser):
     username = models.CharField(max_length=255, unique=False, blank=True, null=True)  # 자동생성 필드임 실제로 사용하지 않음
-    email = models.EmailField(unique=True)  # 이메일 필드를 고유값으로 설정
+    email = models.EmailField(unique=True)  # 이메일 필드를 고유값으로
     phone_number = models.CharField(max_length=30, unique=True)  # 전화번호 (고유값)
     department = models.CharField(max_length=30, blank=True)  # 부서명
     position = models.CharField(max_length=30, blank=True)  # 직급
@@ -41,6 +41,20 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.email  # 출력 시 이메일을 반환
+
+
+
+# 공지사항 모델
+class Notice(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)  # 공지사항을 등록한 회사 참조
+    title = models.CharField(max_length=100)  # 공지사항 제목
+    content = models.TextField()  # 공지사항 내용
+    created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
+    updated_at = models.DateTimeField(auto_now=True)  # 업데이트 일시
+    created_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE)  # 공지사항 작성자 (관리자만)
+
+    def __str__(self):
+        return self.title
 
 
 
@@ -71,25 +85,7 @@ class Vehicle(models.Model):
     def __str__(self):
         return f'{self.vehicle_type} - {self.license_plate_number}'
 
-"""
-# 차량 정기 검사 모델
-class RegularInspection(models.Model):
-    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)  # 차량 참조 (Vehicle 모델 참조)
-    inspection_date = models.DateField()  # 정기 검사 만료일
-    inspection_agency = models.CharField(max_length=30)  # 검사 기관
-    inspection_result = models.BooleanField()  # 검사 결과 (합격/불합격)
 
-    def __str__(self):
-        return f'{self.vehicle.vehicle_type} - {self.inspection_date} 정기 검사'
-"""
-
-"""
-# 차량 정기 검사 등록(게시판 느낌) 모델
-정비일자
-정비내용(예 : 타이어 교체)
-누적주행거리
-금액
-"""
 
 # 운행 기록 모델
 class DrivingRecord(models.Model):
