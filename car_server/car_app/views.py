@@ -371,15 +371,47 @@ class NoticeDetailView(APIView):
 
 
 
-# 차량 목록 및 등록 처리
-class VehicleListCreateView(APIView):
+# 차량 등록 처리
+class VehicleCreateView(APIView):
+    """
+    POST: 새로운 차량 등록 (관리자만 가능)
+    """
+    permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
+
+    def post(self, request):
+        if not request.user.is_admin:  # 관리자인지 확인
+            return Response({
+                "message": "관리자만 차량을 등록할 수 있습니다."
+            }, status=status.HTTP_403_FORBIDDEN)
+        try:
+            serializer = VehicleSerializer(data=request.data, context={'request': request})  # 차량 등록 시리얼라이저
+            if serializer.is_valid():
+                serializer.save()  # 인증된 사용자의 회사 정보와 함께 저장
+                return Response({
+                    "message": "차량 등록이 성공적으로 완료되었습니다.",
+                    "vehicle": serializer.data  # 등록된 차량 정보 반환
+                }, status=status.HTTP_201_CREATED)
+            return Response({
+                "message": "차량 등록에 실패했습니다.",
+                "errors": serializer.errors  # 유효성 검사 실패 시 오류 반환
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({
+                "message": "서버 오류가 발생했습니다.",
+                "error": str(e)  # 예외 발생 시 오류 메시지 반환
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# 차량 전체 목록 조회
+class VehicleListView(APIView):
     """
     GET: 전체 차량 목록 조회
-    POST: 새로운 차량 등록
     """
+    permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
+
     def get(self, request):
         try:
-            vehicles = Vehicle.objects.all()  # 모든 차량 정보 가져오기
+            vehicles = Vehicle.objects.filter(company=request.user.company)  # 로그인한 사용자의 회사에 소속된 차량만 가져오기
             if vehicles.exists():  # 차량이 있는 경우에만 처리
                 serializer = VehicleSerializer(vehicles, many=True)  # 시리얼라이저로 데이터 직렬화
                 return Response({
@@ -396,38 +428,20 @@ class VehicleListCreateView(APIView):
                 "error": str(e)  # 예외 메시지 반환
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def post(self, request):
-        try:
-            serializer = VehicleSerializer(data=request.data)  # 차량 등록 시리얼라이저
-            if serializer.is_valid():
-                if request.user.is_authenticated:  # 인증된 사용자일 경우 last_user 설정
-                    serializer.save(last_user=request.user)
-                else:
-                    serializer.save()  # 인증되지 않은 경우 last_user를 설정하지 않음
-                return Response({
-                    "message": "차량 등록이 성공적으로 완료되었습니다.",
-                    "vehicle": serializer.data  # 등록된 차량 정보 반환
-                }, status=status.HTTP_201_CREATED)
-            return Response({
-                "message": "차량 등록에 실패했습니다.",
-                "errors": serializer.errors  # 유효성 검사 실패 시 오류 반환
-            }, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({
-                "message": "서버 오류가 발생했습니다.",
-                "error": str(e)  # 예외 발생 시 오류 메시지 반환
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-
-class VehicleByLicensePlateView(APIView):
+# 특정 차량 조회, 수정, 삭제가 가능한 API
+class VehicleDetailView(APIView):
     """
-    차량 번호판으로 조회, 수정, 삭제가 가능한 API
+    GET: 특정 차량 정보 조회
+    PATCH: 특정 차량 정보 수정 (관리자만 가능)
+    DELETE: 특정 차량 정보 삭제 (관리자만 가능)
     """
+    permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
+
     def get(self, request, license_plate_number):
         try:
             # 번호판으로 차량 조회
-            vehicle = get_object_or_404(Vehicle, license_plate_number=license_plate_number)
+            vehicle = get_object_or_404(Vehicle, license_plate_number=license_plate_number, company=request.user.company)
             serializer = VehicleSerializer(vehicle)
             return Response({
                 "vehicle": serializer.data
@@ -438,16 +452,17 @@ class VehicleByLicensePlateView(APIView):
                 "error": str(e)  # 예외 메시지 반환
             }, status=status.HTTP_404_NOT_FOUND)
 
-    def put(self, request, license_plate_number):
+    def patch(self, request, license_plate_number):
+        if not request.user.is_admin:  # 관리자인지 확인
+            return Response({
+                "message": "관리자만 차량 정보를 수정할 수 있습니다."
+            }, status=status.HTTP_403_FORBIDDEN)
         try:
             # 번호판으로 차량 조회
-            vehicle = get_object_or_404(Vehicle, license_plate_number=license_plate_number)
-            serializer = VehicleSerializer(vehicle, data=request.data, partial=True)  # 부분 업데이트 허용
+            vehicle = get_object_or_404(Vehicle, license_plate_number=license_plate_number, company=request.user.company)
+            serializer = VehicleSerializer(vehicle, data=request.data, partial=True, context={'request': request})  # 부분 업데이트 허용
             if serializer.is_valid():
-                if request.user.is_authenticated:
-                    serializer.save(last_user=request.user)  # 인증된 사용자의 경우 last_user 설정
-                else:
-                    serializer.save()  # 인증되지 않은 경우 last_user는 설정되지 않음
+                serializer.save()  # 인증된 사용자의 정보와 함께 업데이트
                 return Response({
                     "message": "차량 정보가 성공적으로 수정되었습니다.",
                     "vehicle": serializer.data
@@ -463,9 +478,13 @@ class VehicleByLicensePlateView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, license_plate_number):
+        if not request.user.is_admin:  # 관리자인지 확인
+            return Response({
+                "message": "관리자만 차량을 삭제할 수 있습니다."
+            }, status=status.HTTP_403_FORBIDDEN)
         try:
             # 번호판으로 차량 조회 후 삭제
-            vehicle = get_object_or_404(Vehicle, license_plate_number=license_plate_number)
+            vehicle = get_object_or_404(Vehicle, license_plate_number=license_plate_number, company=request.user.company)
             vehicle.delete()  # 차량 삭제
             return Response({
                 "message": "차량이 성공적으로 삭제되었습니다."

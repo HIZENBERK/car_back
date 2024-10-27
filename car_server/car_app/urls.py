@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RegisterAdminView, AdminLoginView, RegisterUserView, UserListView, LoginView, LogoutView, NoticeListCreateView, NoticeListView, NoticeDetailView, VehicleListCreateView, VehicleByLicensePlateView, DrivingRecordListCreateView, DrivingRecordDetailView
+from .views import RegisterAdminView, AdminLoginView, RegisterUserView, UserListView, LoginView, LogoutView, NoticeListCreateView, NoticeListView, NoticeDetailView, VehicleCreateView, VehicleListView, VehicleDetailView, DrivingRecordListCreateView, DrivingRecordDetailView
 
 # 회원가입 및 로그인 관련 URL 경로 설정
 urlpatterns = [
@@ -19,9 +19,12 @@ urlpatterns = [
     path('notices/all/', NoticeListView.as_view(), name='notice-list'),  # 전체 공지사항 목록 조회 (로그인한 사용자의 회사에 한정)
     path('notices/<int:pk>/', NoticeDetailView.as_view(), name='notice-detail'),  # 공지사항 상세 조회, 수정, 삭제
     
-    # 차량관련
-    path('vehicles/', VehicleListCreateView.as_view(), name='vehicle-list-create'),  # 차량 등록 및 전체 목록 조회
-    path('vehicles/<str:license_plate_number>/', VehicleByLicensePlateView.as_view(), name='vehicle-detail-by-license'),# 차량 번호판으로 조회, 수정, 삭제
+    # 차량 관련
+    path('vehicles/create/', VehicleCreateView.as_view(), name='vehicle-create'),  # 차량 등록
+    path('vehicles/', VehicleListView.as_view(), name='vehicle-list'),  # 차량 전체 목록 조회
+    path('vehicles/<str:license_plate_number>/', VehicleDetailView.as_view(), name='vehicle-detail'),  # 특정 차량 조회, 수정, 삭제
+    
+    # 운행 관련
     path('driving-records/', DrivingRecordListCreateView.as_view(), name='driving-record-list-create'),  # 운행 기록 목록 및 생성
     path('driving-records/<int:pk>/', DrivingRecordDetailView.as_view(), name='driving-record-detail'),  # 특정 운행 기록 조회, 수정, 삭제
 ]

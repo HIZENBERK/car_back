@@ -226,7 +226,7 @@ class NoticeSerializer(serializers.ModelSerializer):
 
 # 차량 정보를 처리하는 Serializer
 class VehicleSerializer(serializers.ModelSerializer):
-    company_name = serializers.SlugRelatedField(queryset=Company.objects.all(), slug_field='name', source='company')  # 회사명으로 연결
+    company_name = serializers.CharField(source='company.name', read_only=True)  # 로그인한 사용자의 회사명 반환
 
     class Meta:
         model = Vehicle
@@ -243,18 +243,18 @@ class VehicleSerializer(serializers.ModelSerializer):
             'last_user',               # 마지막 사용자 (자동 설정)
             'chassis_number',          # 차대 번호
             'purchase_type',           # 구매 유형 (매매, 리스, 렌트 등)
+            'current_status',          # 차량 현재 상황 (가용차량, 사용불가, 삭제)
             'down_payment',            # 선수금
             'deposit',                 # 보증금
             'expiration_date',         # 만기일
-            'company_name'             # 회사명 (작성 시 입력)
+            'company_name'             # 회사명 (자동 설정)
         ]
-        read_only_fields = ['last_user']  # 마지막 사용자는 자동으로 설정되므로 읽기 전용
+        read_only_fields = ['last_user', 'company_name']  # 마지막 사용자와 회사명은 자동으로 설정되므로 읽기 전용
 
     def create(self, validated_data):
-        company = validated_data.pop('company')
+        request = self.context.get('request')
+        validated_data['company'] = request.user.company  # 로그인한 사용자의 회사로 자동 설정
         vehicle = Vehicle.objects.create(**validated_data)
-        vehicle.company = company
-        vehicle.save()
         return vehicle
 
 

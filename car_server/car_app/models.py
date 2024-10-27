@@ -28,6 +28,8 @@ class CustomUser(AbstractUser):
     usage_distance = models.IntegerField(default=0)  # 사용 거리
     unpaid_penalties = models.IntegerField(default=0)  # 미납 과태료
     is_admin = models.BooleanField(default=False)  # 관리자 여부
+    #created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
+
 
     # 로그인 필드를 이메일로 설정
     EMAIL_FIELD = 'email'
@@ -76,11 +78,14 @@ class Vehicle(models.Model):
         ('리스', '리스'),
         ('렌트', '렌트')
     ], default='매매')  # 기본값은 '매매'
-    down_payment = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # 선수금 (위치를 변경)
-    deposit = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # 보증금 (위치를 변경)
-    expiration_date = models.DateField(null=True, blank=True)  # 만기일
-    # 차량 등록시 등록일 정보 입력도 있는데 이는 구매 연/월/일로 임시 대체 함
-    # 차량 현재 상황을 나타내는 필드 추가해야함(가용차량, 사용불가, 삭제)
+    current_status = models.CharField(max_length=20, choices=[
+        ('가용차량', '가용차량'),
+        ('사용불가', '사용불가'),
+        ('삭제', '삭제')
+    ], default='가용차량')  # 차량 현재 상황 필드
+    down_payment = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # 선수금 (선택적)
+    deposit = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # 보증금 (선택적)
+    expiration_date = models.DateField(null=True, blank=True)  # 만기일 (선택적)
 
     def __str__(self):
         return f'{self.vehicle_type} - {self.license_plate_number}'
