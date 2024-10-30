@@ -28,7 +28,8 @@ class CustomUser(AbstractUser):
     usage_distance = models.IntegerField(default=0)  # 사용 거리
     unpaid_penalties = models.IntegerField(default=0)  # 미납 과태료
     is_admin = models.BooleanField(default=False)  # 관리자 여부
-    #created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
+    created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
+
 
 
     # 로그인 필드를 이메일로 설정
@@ -98,15 +99,17 @@ class DrivingRecord(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE) # 사용자 참조 (CustomUser 모델 참조)
     departure_location = models.CharField(max_length=30) # 출발지
     arrival_location = models.CharField(max_length=30) # 도착지
-    departure_mileage = models.PositiveIntegerField() # 출발 전 누적 주행거리
-    arrival_mileage = models.PositiveIntegerField() # 도착 후 누적 주행거리
+    departure_mileage = models.PositiveIntegerField() # 출발 전 누적 주행거리 차량 정보에서 가져 옴
+    arrival_mileage = models.PositiveIntegerField() # 도착 후 누적 주행거리 차량 정보에 저장 함
     driving_distance = models.PositiveIntegerField(editable=False) # 운행거리 (도착 후 주행거리 - 출발 전 주행거리)
     departure_time = models.DateTimeField() # 출발 시간
     arrival_time = models.DateTimeField() # 도착 시간
     driving_time = models.DurationField(editable=False) # 운행 시간 (도착 시간 - 출발 시간)
-    #json코드로 저장할 출발지 부터 도착지 까지 일정시간마다 저장할 좌표 필드 추가해야함 - 이러면 운행거리랑 생각을 해봐야 함
-    
-    
+    coordinates = models.JSONField() # 차량 이동 중 주기적으로 저장된 좌표 정보
+    created_at = models.DateTimeField(auto_now_add=True) # 생성 일시
+
+
+
     # 운행 목적 Choices 설정
     COMMUTING = 'commuting'
     BUSINESS = 'business'
@@ -126,10 +129,19 @@ class DrivingRecord(models.Model):
 
     # 모델 저장 시 운행 거리 및 운행 시간 계산
     def save(self, *args, **kwargs):
+        # 출발 전 누적 주행거리를 차량 모델의 누적 거리에서 가져오기
+        if not self.pk:  # 새로운 운행 기록일 경우에만 설정
+            self.departure_mileage = self.vehicle.total_mileage
+    
         # 운행 거리 계산
         self.driving_distance = self.arrival_mileage - self.departure_mileage
         # 운행 시간 계산
         self.driving_time = self.arrival_time - self.departure_time
+
+        # 도착 후 누적 주행거리를 차량 정보에 저장
+        self.vehicle.total_mileage = self.arrival_mileage
+        self.vehicle.save()
+    
         super(DrivingRecord, self).save(*args, **kwargs)
 
     def __str__(self):
