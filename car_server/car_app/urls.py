@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RegisterAdminView, AdminLoginView, RegisterUserView, UserListView, LoginView, LogoutView, NoticeListCreateView, NoticeListView, NoticeDetailView, VehicleCreateView, VehicleListView, VehicleDetailView, DrivingRecordListCreateView, DrivingRecordListView, DrivingRecordDetailView
+from .views import RegisterAdminView, AdminLoginView, RegisterUserView, UserListView, LoginView, LogoutView, NoticeListCreateView, NoticeListView, NoticeDetailView, VehicleCreateView, VehicleListView, VehicleDetailView, DrivingRecordListCreateView,  DrivingRecordDetailView
 
 # 회원가입 및 로그인 관련 URL 경로 설정
 urlpatterns = [
@@ -26,6 +26,6 @@ urlpatterns = [
     
     # 운행 관련
     path('driving-records/create', DrivingRecordListCreateView.as_view(), name='driving-record-list-create'),  # 운행 기록 생성
-    path('driving-records/', DrivingRecordListView.as_view(), name='driving-record-list'),  # 전체 운행 기록 조회
+    #path('driving-records/', DrivingRecordListView.as_view(), name='driving-record-list'),  # 전체 운행 기록 조회
     path('driving-records/<int:pk>/', DrivingRecordDetailView.as_view(), name='driving-record-detail'),  # 특정 운행 기록 조회, 수정, 삭제
 ]
