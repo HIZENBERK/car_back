@@ -99,17 +99,17 @@ class DrivingRecord(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE) # 사용자 참조 (CustomUser 모델 참조)
     departure_location = models.CharField(max_length=30) # 출발지
     arrival_location = models.CharField(max_length=30) # 도착지
-    departure_mileage = models.PositiveIntegerField() # 출발 전 누적 주행거리 차량 정보에서 가져 옴
-    arrival_mileage = models.PositiveIntegerField() # 도착 후 누적 주행거리 차량 정보에 저장 함
+    departure_mileage = models.PositiveIntegerField() # 출발 전 누적 주행거리
+    arrival_mileage = models.PositiveIntegerField() # 도착 후 누적 주행거리
     driving_distance = models.PositiveIntegerField(editable=False) # 운행거리 (도착 후 주행거리 - 출발 전 주행거리)
     departure_time = models.DateTimeField() # 출발 시간
     arrival_time = models.DateTimeField() # 도착 시간
     driving_time = models.DurationField(editable=False) # 운행 시간 (도착 시간 - 출발 시간)
     coordinates = models.JSONField() # 차량 이동 중 주기적으로 저장된 좌표 정보
     created_at = models.DateTimeField(auto_now_add=True) # 생성 일시
-
-
-
+    
+    
+    
     # 운행 목적 Choices 설정
     COMMUTING = 'commuting'
     BUSINESS = 'business'
