@@ -179,3 +179,7 @@ class Maintenance(models.Model):
     
     def __str__(self):
         return f'{self.vehicle.vehicle_type} - {self.maintenance_type} 정비 기록'
+    
+    
+    
+    #다시 테스트용 푸시
