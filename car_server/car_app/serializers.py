@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Company, CustomUser, Notice, Vehicle, DrivingRecord
+from .models import Company, CustomUser, Notice, Vehicle, DrivingRecord, Maintenance, Expense
 from django.db import transaction
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
@@ -259,44 +259,116 @@ class VehicleSerializer(serializers.ModelSerializer):
 
 
 
+
+
+# 정비 기록을 처리하는 Serializer
+class MaintenanceSerializer(serializers.ModelSerializer):
+    # vehicle_info = serializers.SerializerMethodField()  # 차량 정보 추가
+    # maintenance_type_display = serializers.CharField(source='get_maintenance_type_display')  # 정비 유형 표시
+
+    class Meta:
+        model = Maintenance
+        fields = [
+            'id',                    # 정비 기록 ID (자동 생성)
+            'vehicle',               # 차량 참조
+            'vehicle_info',          # 차량 정보 (추가 필드)
+            'maintenance_date',      # 정비 일자
+            'maintenance_type',      # 정비 유형 (코드 값)
+            'maintenance_type_display',  # 정비 유형 (표시용 값)
+            'maintenance_cost',      # 정비 비용
+            'maintenance_description', # 정비 내용
+            'created_at'             # 생성 일시
+        ]
+
+    def get_vehicle_info(self, obj):
+        return {
+            "vehicle_type": obj.vehicle.vehicle_type,
+            "license_plate_number": obj.vehicle.license_plate_number,
+            "company": obj.vehicle.company.name
+        }
+
+
+
+# 지출 내역을 처리하는 Serializer
+class ExpenseSerializer(serializers.ModelSerializer):
+    user_info = serializers.SerializerMethodField()  # 사용자 정보 추가
+    vehicle_info = serializers.SerializerMethodField()  # 차량 정보 추가
+
+    class Meta:
+        model = Expense
+        fields = [
+            'id',                   # 지출 내역 ID
+            'expense_type',         # 지출 구분
+            'expense_date',         # 지출 일자
+            'status',               # 상태
+            'user',                 # 사용자 (ID)
+            'user_info',            # 사용자 정보 (추가 필드)
+            'vehicle',              # 차량 (ID)
+            'vehicle_info',         # 차량 정보 (추가 필드)
+            'description',          # 상세 내용
+            'payment_method',       # 결제 수단
+            'amount',               # 금액
+            'receipt_details'       # 영수증 상세
+        ]
+
+    def get_user_info(self, obj):
+        return {
+            "name": obj.user.name,
+            "department": obj.user.department,
+            "position": obj.user.position
+        }
+
+    def get_vehicle_info(self, obj):
+        if obj.vehicle:
+            return {
+                "vehicle_type": obj.vehicle.vehicle_type,
+                "license_plate_number": obj.vehicle.license_plate_number,
+                "company": obj.vehicle.company.name
+            }
+        return None
+
+
+
 # 운행 기록을 처리하는 Serializer
 class DrivingRecordSerializer(serializers.ModelSerializer):
+    vehicle_info = serializers.SerializerMethodField()  # 차량 정보 추가
+    user_info = serializers.SerializerMethodField()  # 사용자 정보 추가
+    maintenances = MaintenanceSerializer(many=True, read_only=True)  # 정비 기록 추가
+    expenses = serializers.PrimaryKeyRelatedField(queryset=Expense.objects.all(), many=True)  # 지출 내역 추가
+
     class Meta:
         model = DrivingRecord
         fields = [
-            'id',                   # 운행 기록 ID (자동 생성)
-            'vehicle',              # 차량 정보 (Vehicle 참조)
-            'user',                 # 사용자 정보 (CustomUser 참조) 임시로 자동생성된 id를 사용
+            'id',                    # 운행 기록 ID (자동 생성)
+            'vehicle',               # 차량 참조
+            'vehicle_info',          # 차량 정보 (추가 필드)
+            'user',                  # 사용자 참조
+            'user_info',             # 사용자 정보 (추가 필드)
             'departure_location',    # 출발지
             'arrival_location',      # 도착지
             'departure_mileage',     # 출발 전 주행거리
             'arrival_mileage',       # 도착 후 주행거리
-            'driving_distance',      # 운행 거리 (자동 계산)
+            'driving_distance',      # 운행 거리
             'departure_time',        # 출발 시간
             'arrival_time',          # 도착 시간
-            'driving_time',          # 운행 시간 (자동 계산)
-            'driving_purpose'        # 운행 목적
+            'driving_time',          # 운행 시간
+            'coordinates',           # 주기적으로 저장된 좌표 정보
+            'driving_purpose',       # 운행 목적
+            'maintenances',          # 정비 기록
+            'expenses',              # 지출 내역
+            'created_at'             # 생성 일시
         ]
-        read_only_fields = ['driving_distance', 'driving_time']  # 운행 거리 및 운행 시간은 자동 계산됨, 프론트에서 포맷팅 필요
 
-    def create(self, validated_data):
-        # 운행 거리를 자동으로 계산 (도착 후 주행거리 - 출발 전 주행거리)
-        driving_distance = validated_data['arrival_mileage'] - validated_data['departure_mileage']
-        # 운행 시간을 자동으로 계산 (도착 시간 - 출발 시간)
-        driving_time = validated_data['arrival_time'] - validated_data['departure_time']
+    def get_vehicle_info(self, obj):
+        return {
+            "vehicle_type": obj.vehicle.vehicle_type,
+            "license_plate_number": obj.vehicle.license_plate_number,
+            "company": obj.vehicle.company.name
+        }
 
-        # 새로운 DrivingRecord 객체 생성
-        driving_record = DrivingRecord.objects.create(
-            vehicle=validated_data['vehicle'],
-            user=validated_data['user'],
-            departure_location=validated_data['departure_location'],
-            arrival_location=validated_data['arrival_location'],
-            departure_mileage=validated_data['departure_mileage'],
-            arrival_mileage=validated_data['arrival_mileage'],
-            driving_distance=driving_distance,
-            departure_time=validated_data['departure_time'],
-            arrival_time=validated_data['arrival_time'],
-            driving_time=driving_time,
-            driving_purpose=validated_data['driving_purpose']
-        )
-        return driving_record
+    def get_user_info(self, obj):
+        return {
+            "name": obj.user.name,
+            "department": obj.user.department,
+            "position": obj.user.position
+        }

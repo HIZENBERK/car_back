@@ -70,8 +70,6 @@ class Vehicle(models.Model):
     purchase_date = models.DateField()  # 구매 연/월/일
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2)  # 구매 가격
     total_mileage = models.PositiveIntegerField()  # 총 주행 거리, 누적 거리 (정수, 음수 불가)
-    last_used_date = models.DateField(null=True, blank=True)  # 마지막 사용일 (비어 있을 수 있음)
-    last_user = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)  # 마지막 사용자 CustomUser 모델 참조
     company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)  # 회사 정보 (Company 모델 참조)
     chassis_number = models.CharField(max_length=50, null=True, blank=True)  # 차대 번호
     purchase_type = models.CharField(max_length=20, choices=[  # 구매 유형 필드
@@ -87,48 +85,25 @@ class Vehicle(models.Model):
     down_payment = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # 선수금 (선택적)
     deposit = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # 보증금 (선택적)
     expiration_date = models.DateField(null=True, blank=True)  # 만기일 (선택적)
+    
+    @property #마지막 사용자를 최신 운행기록을 기준으로 가져오기
+    def last_user(self):
+        last_record = self.drivingrecord_set.order_by('-arrival_time').first()
+        if last_record:
+            return last_record.user
+        return None
+
+    def __str__(self):
+        return f'{self.vehicle_type} - {self.license_plate_number}'
 
     def __str__(self):
         return f'{self.vehicle_type} - {self.license_plate_number}'
 
 
 
-# 운행 기록 모델
-class DrivingRecord(models.Model):
-    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE) # 차량 참조 (Vehicle 모델 참조)
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE) # 사용자 참조 (CustomUser 모델 참조)
-    departure_location = models.CharField(max_length=30) # 출발지
-    arrival_location = models.CharField(max_length=30) # 도착지
-    departure_mileage = models.PositiveIntegerField() # 출발 전 누적 주행거리 차량 정보에서 가져 옴
-    arrival_mileage = models.PositiveIntegerField() # 도착 후 누적 주행거리 차량 정보에 저장 함
-    driving_distance = models.PositiveIntegerField(editable=False) # 운행거리 (도착 후 주행거리 - 출발 전 주행거리)
-    departure_time = models.DateTimeField() # 출발 시간
-    arrival_time = models.DateTimeField() # 도착 시간
-    driving_time = models.DurationField(editable=False) # 운행 시간 (도착 시간 - 출발 시간)
-    coordinates = models.JSONField() # 차량 이동 중 주기적으로 저장된 좌표 정보
-    created_at = models.DateTimeField(auto_now_add=True) # 생성 일시
-
-
-
-    # 운행 목적 Choices 설정
-    COMMUTING = 'commuting'
-    BUSINESS = 'business'
-    NON_BUSINESS = 'non_business'
-    DRIVING_PURPOSE_CHOICES = [
-        (COMMUTING, '출/퇴근'),
-        (BUSINESS, '일반업무'),
-        (NON_BUSINESS, '비업무')
-    ]
-    
-    # 운행 목적
-    driving_purpose = models.CharField(
-        max_length=20,
-        choices=DRIVING_PURPOSE_CHOICES,
-        default=COMMUTING
-    )
-
     # 모델 저장 시 운행 거리 및 운행 시간 계산
     def save(self, *args, **kwargs):
+        from .models import Vehicle # 임포트 순환 참조 방지를 위해 함수 내부에서 임포트
         # 출발 전 누적 주행거리를 차량 모델의 누적 거리에서 가져오기
         if not self.pk:  # 새로운 운행 기록일 경우에만 설정
             self.departure_mileage = self.vehicle.total_mileage
@@ -153,36 +128,112 @@ class DrivingRecord(models.Model):
 class Maintenance(models.Model):
     vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)  # 차량 참조 (Vehicle 모델 참조)
     maintenance_date = models.DateField()  # 정비 일자
-    maintenance_type = models.CharField(max_length=20)  # 정비 유형
+    
+    # 정비 유형 Choices 설정
+    ENGINE_OIL_CHANGE = 'engine_oil_change'
+    AIR_FILTER_CHANGE = 'air_filter_change'
+    BRAKE_PAD_CHANGE = 'brake_pad_change'
+    TIRE_CHANGE = 'tire_change'
+    OTHER = 'other'
+    MAINTENANCE_TYPE_CHOICES = [
+        (ENGINE_OIL_CHANGE, '엔진 오일 교체'),
+        (AIR_FILTER_CHANGE, '에어컨 필터 교체'),
+        (BRAKE_PAD_CHANGE, '브레이크 패드 교체'),
+        (TIRE_CHANGE, '타이어 교체'),
+        (OTHER, '기타')
+    ]
+    
+    maintenance_type = models.CharField(
+        max_length=20,
+        choices=MAINTENANCE_TYPE_CHOICES,
+        default=OTHER
+    )  # 정비 유형
     maintenance_cost = models.DecimalField(max_digits=10, decimal_places=2)  # 정비 비용
     maintenance_description = models.TextField()  # 정비 내용
     created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
 
-    #엔진 오일 교체 주기 5천 km, 에어컨 필터 1만 km, 브레이크 패드 교체 주기 3만 km, 타이어 교체 주기 3만 km
-    #정비 주기에 맞추어 정비 기록을 생성하는 함수
-    def create_maintenance_record(self):
-        # 엔진 오일 교체 주기 5천 km
-        if self.maintenance_type == '엔진 오일 교체':
-            self.vehicle.total_mileage += 5000
-        # 에어컨 필터 교체 주기 1만 km
-        elif self.maintenance_type == '에어컨 필터 교체':
-            self.vehicle.total_mileage += 10000
-        # 브레이크 패드 교체 주기 3만 km
-        elif self.maintenance_type == '브레이크 패드 교체':
-            self.vehicle.total_mileage += 30000
-        # 타이어 교체 주기 3만 km
-        elif self.maintenance_type == '타이어 교체':
-            self.vehicle.total_mileage += 30000
-        # 차량 정보에 저장
-        self.vehicle.save()
-
-    
     def __str__(self):
         return f'{self.vehicle.vehicle_type} - {self.maintenance_type} 정비 기록'
+
+
+
+# 지출 관리 모델
+class Expense(models.Model):
+    EXPENSE = 'expense'
+    MAINTENANCE = 'maintenance'
+    EXPENSE_TYPE_CHOICES = [
+        (EXPENSE, '지출'),
+        (MAINTENANCE, '정비')
+    ]
+    
+    APPROVED = 'approved'
+    PENDING = 'pending'
+    REJECTED = 'rejected'
+    STATUS_CHOICES = [
+        (APPROVED, '승인'),
+        (PENDING, '대기'),
+        (REJECTED, '반려')
+    ]
+    
+    expense_type = models.CharField(
+        max_length=20,
+        choices=EXPENSE_TYPE_CHOICES,
+        default=EXPENSE
+    )  # 구분
+    expense_date = models.DateField()  # 지출 일자
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=PENDING
+    )  # 상태
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)  # 사용자 (커스텀 유저 참조)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.SET_NULL, null=True, blank=True)  # 차량 (선택적)
+    details = models.TextField()  # 상세내용
+    payment_method = models.CharField(max_length=50)  # 결제수단
+    amount = models.DecimalField(max_digits=10, decimal_places=2)  # 금액
+    receipt_detail = models.FileField(upload_to='receipts/', null=True, blank=True)  # 영수증 상세 (첨부파일)
+    created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
+
+    def __str__(self):
+        return f'{self.get_expense_type_display()} - {self.amount}원 지출 내역'
     
     
     
-    #다시 테스트용 푸시
-    #노트북 -> 데탑 테스트용 푸시
-    #내용추가해서 푸시4
-    #노트북에서 데탑 푸시 체크5
+
+# 운행 기록 모델
+class DrivingRecord(models.Model):
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)  # 차량 참조 (Vehicle 모델 참조)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)  # 사용자 참조 (CustomUser 모델 참조)
+    departure_location = models.CharField(max_length=30)  # 출발지
+    arrival_location = models.CharField(max_length=30)  # 도착지
+    departure_mileage = models.PositiveIntegerField()  # 출발 전 누적 주행거리 차량 정보에서 가져 옴
+    arrival_mileage = models.PositiveIntegerField()  # 도착 후 누적 주행거리 차량 정보에 저장 함
+    driving_distance = models.PositiveIntegerField(editable=False)  # 운행거리 (도착 후 주행거리 - 출발 전 주행거리)
+    departure_time = models.DateTimeField()  # 출발 시간
+    arrival_time = models.DateTimeField()  # 도착 시간
+    driving_time = models.DurationField(editable=False)  # 운행 시간 (도착 시간 - 출발 시간)
+    coordinates = models.JSONField()  # 차량 이동 중 주기적으로 저장된 좌표 정보
+    created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
+
+    # 운행 중 발생한 정비 기록
+    maintenances = models.ManyToManyField(Maintenance, blank=True)  # 운행 중 발생한 정비 기록 (Many to Many)
+
+    # 운행 중 발생한 지출 내역
+    expenses = models.ManyToManyField(Expense, blank=True)  # 운행 중 발생한 지출 내역 (Many to Many)
+
+    # 운행 목적 Choices 설정
+    COMMUTING = 'commuting'
+    BUSINESS = 'business'
+    NON_BUSINESS = 'non_business'
+    DRIVING_PURPOSE_CHOICES = [
+        (COMMUTING, '출/퇴근'),
+        (BUSINESS, '일반업무'),
+        (NON_BUSINESS, '비업무')
+    ]
+
+    # 운행 목적
+    driving_purpose = models.CharField(
+        max_length=20,
+        choices=DRIVING_PURPOSE_CHOICES,
+        default=COMMUTING
+    )
