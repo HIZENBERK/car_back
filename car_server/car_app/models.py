@@ -146,3 +146,6 @@ class DrivingRecord(models.Model):
 
     def __str__(self):
         return f'{self.user.name} - {self.vehicle.vehicle_type} 운행 기록'
+    
+    
+    #테스트용 푸시 주석
