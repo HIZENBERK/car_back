@@ -99,17 +99,17 @@ class DrivingRecord(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE) # 사용자 참조 (CustomUser 모델 참조)
     departure_location = models.CharField(max_length=30) # 출발지
     arrival_location = models.CharField(max_length=30) # 도착지
-    departure_mileage = models.PositiveIntegerField() # 출발 전 누적 주행거리
-    arrival_mileage = models.PositiveIntegerField() # 도착 후 누적 주행거리
+    departure_mileage = models.PositiveIntegerField() # 출발 전 누적 주행거리 차량 정보에서 가져 옴
+    arrival_mileage = models.PositiveIntegerField() # 도착 후 누적 주행거리 차량 정보에 저장 함
     driving_distance = models.PositiveIntegerField(editable=False) # 운행거리 (도착 후 주행거리 - 출발 전 주행거리)
     departure_time = models.DateTimeField() # 출발 시간
     arrival_time = models.DateTimeField() # 도착 시간
     driving_time = models.DurationField(editable=False) # 운행 시간 (도착 시간 - 출발 시간)
     coordinates = models.JSONField() # 차량 이동 중 주기적으로 저장된 좌표 정보
     created_at = models.DateTimeField(auto_now_add=True) # 생성 일시
-    
-    
-    
+
+
+
     # 운행 목적 Choices 설정
     COMMUTING = 'commuting'
     BUSINESS = 'business'
@@ -146,6 +146,36 @@ class DrivingRecord(models.Model):
 
     def __str__(self):
         return f'{self.user.name} - {self.vehicle.vehicle_type} 운행 기록'
+
+
+
+# 정비 기록 모델
+class Maintenance(models.Model):
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)  # 차량 참조 (Vehicle 모델 참조)
+    maintenance_date = models.DateField()  # 정비 일자
+    maintenance_type = models.CharField(max_length=20)  # 정비 유형
+    maintenance_cost = models.DecimalField(max_digits=10, decimal_places=2)  # 정비 비용
+    maintenance_description = models.TextField()  # 정비 내용
+    created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
+
+    #엔진 오일 교체 주기 5천 km, 에어컨 필터 1만 km, 브레이크 패드 교체 주기 3만 km, 타이어 교체 주기 3만 km
+    #정비 주기에 맞추어 정비 기록을 생성하는 함수
+    def create_maintenance_record(self):
+        # 엔진 오일 교체 주기 5천 km
+        if self.maintenance_type == '엔진 오일 교체':
+            self.vehicle.total_mileage += 5000
+        # 에어컨 필터 교체 주기 1만 km
+        elif self.maintenance_type == '에어컨 필터 교체':
+            self.vehicle.total_mileage += 10000
+        # 브레이크 패드 교체 주기 3만 km
+        elif self.maintenance_type == '브레이크 패드 교체':
+            self.vehicle.total_mileage += 30000
+        # 타이어 교체 주기 3만 km
+        elif self.maintenance_type == '타이어 교체':
+            self.vehicle.total_mileage += 30000
+        # 차량 정보에 저장
+        self.vehicle.save()
+
     
-    
-    #테스트용 푸시 주석
+    def __str__(self):
+        return f'{self.vehicle.vehicle_type} - {self.maintenance_type} 정비 기록'

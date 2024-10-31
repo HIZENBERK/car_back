@@ -500,17 +500,8 @@ class VehicleDetailView(APIView):
 # 운행 기록 목록 및 생성 처리
 class DrivingRecordListCreateView(APIView):
     """
-    GET: 전체 운행 기록 목록 조회
     POST: 새로운 운행 기록 생성
     """
-    def get(self, request):
-        records = DrivingRecord.objects.all()  # 모든 운행 기록 가져오기
-        serializer = DrivingRecordSerializer(records, many=True)  # 여러 개의 운행 기록 직렬화
-        return Response({
-            "message": "운행 기록 목록 조회가 성공적으로 완료되었습니다.",
-            "records": serializer.data  # 운행 기록 목록 반환
-        }, status=status.HTTP_200_OK)
-
     def post(self, request):
         serializer = DrivingRecordSerializer(data=request.data)
         if serializer.is_valid():
@@ -523,6 +514,20 @@ class DrivingRecordListCreateView(APIView):
             "message": "운행 기록 생성에 실패했습니다.",
             "errors": serializer.errors  # 유효성 검사 오류 반환
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class DrivingRecordListView(APIView):
+    """
+    GET: 전체 운행 기록 목록 조회
+    """
+    def get(self, request):
+        records = DrivingRecord.objects.all()  # 모든 운행 기록 가져오기
+        serializer = DrivingRecordSerializer(records, many=True)  # 여러 개의 운행 기록 직렬화
+        return Response({
+            "message": "운행 기록 목록 조회가 성공적으로 완료되었습니다.",
+            "records": serializer.data  # 운행 기록 목록 반환
+        }, status=status.HTTP_200_OK)
 
 
 
