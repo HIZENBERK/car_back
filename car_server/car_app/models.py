@@ -183,3 +183,4 @@ class Maintenance(models.Model):
     
     
     #다시 테스트용 푸시
+    #노트북 -> 데탑 테스트용 푸시
