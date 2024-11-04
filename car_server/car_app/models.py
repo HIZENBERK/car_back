@@ -71,7 +71,7 @@ class Vehicle(models.Model):
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2)  # 구매 가격
     total_mileage = models.PositiveIntegerField()  # 총 주행 거리, 누적 거리 (정수, 음수 불가)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)  # 회사 정보 (Company 모델 참조)
-    chassis_number = models.CharField(max_length=50, null=True, blank=True)  # 차대 번호
+    chassis_number = models.CharField(max_length=50, null=True, blank=True)  # 차대 번호 Vehicle identification number로 바꿔야함
     purchase_type = models.CharField(max_length=20, choices=[  # 구매 유형 필드
         ('매매', '매매'),
         ('리스', '리스'),
@@ -196,9 +196,9 @@ class Expense(models.Model):
 
     def __str__(self):
         return f'{self.get_expense_type_display()} - {self.amount}원 지출 내역'
-    
-    
-    
+
+
+
 
 # 운행 기록 모델
 class DrivingRecord(models.Model):

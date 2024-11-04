@@ -227,6 +227,8 @@ class NoticeSerializer(serializers.ModelSerializer):
 # 차량 정보를 처리하는 Serializer
 class VehicleSerializer(serializers.ModelSerializer):
     company_name = serializers.CharField(source='company.name', read_only=True)  # 로그인한 사용자의 회사명 반환
+    last_user = serializers.SerializerMethodField()  # 마지막 사용자 이름 반환
+    last_used_date = serializers.SerializerMethodField()  # 마지막 사용일 반환
 
     class Meta:
         model = Vehicle
@@ -249,13 +251,26 @@ class VehicleSerializer(serializers.ModelSerializer):
             'expiration_date',         # 만기일
             'company_name'             # 회사명 (자동 설정)
         ]
-        read_only_fields = ['last_user', 'company_name']  # 마지막 사용자와 회사명은 자동으로 설정되므로 읽기 전용
+        read_only_fields = ['last_user', 'last_used_date', 'company_name']  # 마지막 사용자, 마지막 사용일, 회사명은 자동으로 설정되므로 읽기 전용
 
     def create(self, validated_data):
         request = self.context.get('request')
         validated_data['company'] = request.user.company  # 로그인한 사용자의 회사로 자동 설정
         vehicle = Vehicle.objects.create(**validated_data)
         return vehicle
+
+    def get_last_user(self, obj):
+        last_record = obj.drivingrecord_set.order_by('-created_at').first() # 마지막 운행 기록 조회 후 사용자 정보 반환 없으면 None 반환
+        if last_record:
+            return last_record.user.name
+        return None
+
+    def get_last_used_date(self, obj):
+        last_record = obj.drivingrecord_set.order_by('-created_at').first() # 마지막 운행 기록 조회 후 사용일 반환 없으면 None 반환
+        if last_record:
+            return last_record.created_at
+        return None
+
 
 
 
