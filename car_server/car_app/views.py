@@ -386,7 +386,10 @@ class VehicleCreateView(APIView):
         try:
             serializer = VehicleSerializer(data=request.data, context={'request': request})  # 차량 등록 시리얼라이저
             if serializer.is_valid():
-                serializer.save()  # 인증된 사용자의 회사 정보와 함께 저장
+                vehicle = serializer.save()  # 인증된 사용자의 회사 정보와 함께 저장
+
+                # 마지막 사용일과 마지막 사용자 정보는 운행 기록을 통해 자동으로 설정되므로 여기서 설정하지 않음
+
                 return Response({
                     "message": "차량 등록이 성공적으로 완료되었습니다.",
                     "vehicle": serializer.data  # 등록된 차량 정보 반환

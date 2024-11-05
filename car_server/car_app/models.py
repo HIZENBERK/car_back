@@ -70,13 +70,13 @@ class Vehicle(models.Model):
     purchase_date = models.DateField()  # 구매 연/월/일
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2)  # 구매 가격
     total_mileage = models.PositiveIntegerField()  # 총 주행 거리, 누적 거리 (정수, 음수 불가)
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)  # 회사 정보 (Company 모델 참조)
-    chassis_number = models.CharField(max_length=50, null=True, blank=True)  # 차대 번호 Vehicle identification number로 바꿔야함
-    purchase_type = models.CharField(max_length=20, choices=[  # 구매 유형 필드
+    company = models.ForeignKey('Company', on_delete=models.CASCADE, null=True, blank=True)  # 회사 정보 (Company 모델 참조)
+    chassis_number = models.CharField(max_length=50, null=True, blank=True)  # 차대 번호
+    purchase_type = models.CharField(max_length=20, choices=[
         ('매매', '매매'),
         ('리스', '리스'),
         ('렌트', '렌트')
-    ], default='매매')  # 기본값은 '매매'
+    ], default='매매')  # 구매 유형
     current_status = models.CharField(max_length=20, choices=[
         ('가용차량', '가용차량'),
         ('사용불가', '사용불가'),
@@ -85,9 +85,18 @@ class Vehicle(models.Model):
     down_payment = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # 선수금 (선택적)
     deposit = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # 보증금 (선택적)
     expiration_date = models.DateField(null=True, blank=True)  # 만기일 (선택적)
-    
-    @property #마지막 사용자를 최신 운행기록을 기준으로 가져오기
+
+    @property
+    def last_used_date(self):
+        # 운행 기록 중 가장 최근의 도착 시간을 가져옴
+        last_record = self.drivingrecord_set.order_by('-arrival_time').first()
+        if last_record:
+            return last_record.arrival_time.date()  # 도착 시간을 날짜 형태로 반환
+        return None
+
+    @property
     def last_user(self):
+        # 운행 기록 중 가장 최근의 운전자를 가져옴
         last_record = self.drivingrecord_set.order_by('-arrival_time').first()
         if last_record:
             return last_record.user
@@ -95,32 +104,6 @@ class Vehicle(models.Model):
 
     def __str__(self):
         return f'{self.vehicle_type} - {self.license_plate_number}'
-
-    def __str__(self):
-        return f'{self.vehicle_type} - {self.license_plate_number}'
-
-
-
-    # 모델 저장 시 운행 거리 및 운행 시간 계산
-    def save(self, *args, **kwargs):
-        from .models import Vehicle # 임포트 순환 참조 방지를 위해 함수 내부에서 임포트
-        # 출발 전 누적 주행거리를 차량 모델의 누적 거리에서 가져오기
-        if not self.pk:  # 새로운 운행 기록일 경우에만 설정
-            self.departure_mileage = self.vehicle.total_mileage
-    
-        # 운행 거리 계산
-        self.driving_distance = self.arrival_mileage - self.departure_mileage
-        # 운행 시간 계산
-        self.driving_time = self.arrival_time - self.departure_time
-
-        # 도착 후 누적 주행거리를 차량 정보에 저장
-        self.vehicle.total_mileage = self.arrival_mileage
-        self.vehicle.save()
-    
-        super(DrivingRecord, self).save(*args, **kwargs)
-
-    def __str__(self):
-        return f'{self.user.name} - {self.vehicle.vehicle_type} 운행 기록'
 
 
 
