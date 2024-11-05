@@ -227,7 +227,7 @@ class NoticeSerializer(serializers.ModelSerializer):
 # 차량 정보를 처리하는 Serializer
 class VehicleSerializer(serializers.ModelSerializer):
     company_name = serializers.CharField(source='company.name', read_only=True)  # 로그인한 사용자의 회사명 반환
-    last_user = serializers.SerializerMethodField()  # 마지막 사용자 이름 반환
+    last_user = serializers.SerializerMethodField()  # 마지막 사용자 반환
     last_used_date = serializers.SerializerMethodField()  # 마지막 사용일 반환
 
     class Meta:
@@ -251,7 +251,7 @@ class VehicleSerializer(serializers.ModelSerializer):
             'expiration_date',         # 만기일
             'company_name'             # 회사명 (자동 설정)
         ]
-        read_only_fields = ['last_user', 'last_used_date', 'company_name']  # 마지막 사용자, 마지막 사용일, 회사명은 자동으로 설정되므로 읽기 전용
+        read_only_fields = ['last_user', 'last_used_date', 'company_name']  # 마지막 사용자와 회사명은 자동으로 설정되므로 읽기 전용
 
     def create(self, validated_data):
         request = self.context.get('request')
@@ -260,46 +260,39 @@ class VehicleSerializer(serializers.ModelSerializer):
         return vehicle
 
     def get_last_user(self, obj):
-        last_record = obj.drivingrecord_set.order_by('-created_at').first() # 마지막 운행 기록 조회 후 사용자 정보 반환 없으면 None 반환
-        if last_record:
-            return last_record.user.name
-        return None
+        last_record = obj.drivingrecord_set.order_by('-created_at').first()
+        return last_record.user.name if last_record else None
 
     def get_last_used_date(self, obj):
-        last_record = obj.drivingrecord_set.order_by('-created_at').first() # 마지막 운행 기록 조회 후 사용일 반환 없으면 None 반환
-        if last_record:
-            return last_record.created_at
-        return None
-
-
+        last_record = obj.drivingrecord_set.order_by('-created_at').first()
+        return last_record.created_at if last_record else None
 
 
 
 
 # 정비 기록을 처리하는 Serializer
 class MaintenanceSerializer(serializers.ModelSerializer):
-    # vehicle_info = serializers.SerializerMethodField()  # 차량 정보 추가
-    # maintenance_type_display = serializers.CharField(source='get_maintenance_type_display')  # 정비 유형 표시
+    vehicle_info = serializers.SerializerMethodField()  # 차량 정보 추가
+    maintenance_type_display = serializers.CharField(source='get_maintenance_type_display', read_only=True)  # 정비 유형 표시
 
     class Meta:
         model = Maintenance
         fields = [
-            'id',                    # 정비 기록 ID (자동 생성)
-            'vehicle',               # 차량 참조
-            'vehicle_info',          # 차량 정보 (추가 필드)
-            'maintenance_date',      # 정비 일자
-            'maintenance_type',      # 정비 유형 (코드 값)
-            'maintenance_type_display',  # 정비 유형 (표시용 값)
-            'maintenance_cost',      # 정비 비용
+            'id',                      # 정비 기록 ID (자동 생성)
+            'vehicle_info',            # 차량 정보 (추가 필드)
+            'maintenance_date',        # 정비 일자
+            'maintenance_type',        # 정비 유형 (코드 값)
+            'maintenance_type_display',# 정비 유형 (표시용 값)
+            'maintenance_cost',        # 정비 비용
             'maintenance_description', # 정비 내용
-            'created_at'             # 생성 일시
+            'created_at'               # 생성 일시
         ]
 
     def get_vehicle_info(self, obj):
         return {
             "vehicle_type": obj.vehicle.vehicle_type,
             "license_plate_number": obj.vehicle.license_plate_number,
-            "company": obj.vehicle.company.name
+            "company": obj.vehicle.company.name if obj.vehicle.company else None
         }
 
 
@@ -320,10 +313,10 @@ class ExpenseSerializer(serializers.ModelSerializer):
             'user_info',            # 사용자 정보 (추가 필드)
             'vehicle',              # 차량 (ID)
             'vehicle_info',         # 차량 정보 (추가 필드)
-            'description',          # 상세 내용
+            'details',              # 상세 내용
             'payment_method',       # 결제 수단
             'amount',               # 금액
-            'receipt_details'       # 영수증 상세
+            'receipt_detail'        # 영수증 상세
         ]
 
     def get_user_info(self, obj):
@@ -338,7 +331,7 @@ class ExpenseSerializer(serializers.ModelSerializer):
             return {
                 "vehicle_type": obj.vehicle.vehicle_type,
                 "license_plate_number": obj.vehicle.license_plate_number,
-                "company": obj.vehicle.company.name
+                "company": obj.vehicle.company.name if obj.vehicle.company else None
             }
         return None
 
@@ -349,7 +342,7 @@ class DrivingRecordSerializer(serializers.ModelSerializer):
     vehicle_info = serializers.SerializerMethodField()  # 차량 정보 추가
     user_info = serializers.SerializerMethodField()  # 사용자 정보 추가
     maintenances = MaintenanceSerializer(many=True, read_only=True)  # 정비 기록 추가
-    expenses = serializers.PrimaryKeyRelatedField(queryset=Expense.objects.all(), many=True)  # 지출 내역 추가
+    expenses_info = serializers.SerializerMethodField()  # 지출 내역 정보 추가
 
     class Meta:
         model = DrivingRecord
@@ -370,7 +363,7 @@ class DrivingRecordSerializer(serializers.ModelSerializer):
             'coordinates',           # 주기적으로 저장된 좌표 정보
             'driving_purpose',       # 운행 목적
             'maintenances',          # 정비 기록
-            'expenses',              # 지출 내역
+            'expenses_info',         # 지출 내역 정보
             'created_at'             # 생성 일시
         ]
 
@@ -378,7 +371,9 @@ class DrivingRecordSerializer(serializers.ModelSerializer):
         return {
             "vehicle_type": obj.vehicle.vehicle_type,
             "license_plate_number": obj.vehicle.license_plate_number,
-            "company": obj.vehicle.company.name
+            "company": obj.vehicle.company.name,
+            "last_used_date": obj.vehicle.last_used_date,
+            "last_user": obj.vehicle.last_user.name if obj.vehicle.last_user else None
         }
 
     def get_user_info(self, obj):
@@ -387,3 +382,15 @@ class DrivingRecordSerializer(serializers.ModelSerializer):
             "department": obj.user.department,
             "position": obj.user.position
         }
+
+    def get_expenses_info(self, obj):
+        return [
+            {
+                "expense_type": expense.expense_type,
+                "expense_date": expense.expense_date,
+                "status": expense.status,
+                "amount": expense.amount,
+                "description": expense.details
+            }
+            for expense in obj.expenses.all()
+        ]

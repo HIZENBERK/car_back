@@ -386,7 +386,10 @@ class VehicleCreateView(APIView):
         try:
             serializer = VehicleSerializer(data=request.data, context={'request': request})  # 차량 등록 시리얼라이저
             if serializer.is_valid():
-                serializer.save()  # 인증된 사용자의 회사 정보와 함께 저장
+                vehicle = serializer.save()  # 인증된 사용자의 회사 정보와 함께 저장
+
+                # 마지막 사용일과 마지막 사용자 정보는 운행 기록을 통해 자동으로 설정되므로 여기서 설정하지 않음
+
                 return Response({
                     "message": "차량 등록이 성공적으로 완료되었습니다.",
                     "vehicle": serializer.data  # 등록된 차량 정보 반환
@@ -494,84 +497,6 @@ class VehicleDetailView(APIView):
                 "message": "차량 삭제에 실패했습니다.",
                 "error": str(e)  # 예외 메시지 반환
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
-# 운행 기록 목록 및 생성 처리
-class DrivingRecordListCreateView(APIView):
-    """
-    POST: 새로운 운행 기록 생성
-    """
-    def post(self, request):
-        serializer = DrivingRecordSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()  # 유효성 검사를 통과한 경우 데이터베이스에 저장
-            return Response({
-                "message": "운행 기록이 성공적으로 생성되었습니다.",
-                "record": serializer.data  # 생성된 운행 기록 반환
-            }, status=status.HTTP_201_CREATED)
-        return Response({
-            "message": "운행 기록 생성에 실패했습니다.",
-            "errors": serializer.errors  # 유효성 검사 오류 반환
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-class DrivingRecordListView(APIView):
-    """
-    GET: 전체 운행 기록 목록 조회
-    """
-    def get(self, request):
-        records = DrivingRecord.objects.all()  # 모든 운행 기록 가져오기
-        serializer = DrivingRecordSerializer(records, many=True)  # 여러 개의 운행 기록 직렬화
-        return Response({
-            "message": "운행 기록 목록 조회가 성공적으로 완료되었습니다.",
-            "records": serializer.data  # 운행 기록 목록 반환
-        }, status=status.HTTP_200_OK)
-
-
-
-# 특정 운행 기록 조회, 수정 및 삭제 처리
-class DrivingRecordDetailView(APIView):
-    """
-    GET: 특정 운행 기록 조회
-    PUT: 특정 운행 기록 수정
-    DELETE: 특정 운행 기록 삭제
-    """
-    def get(self, request, pk):
-        try:
-            record = get_object_or_404(DrivingRecord, pk=pk)  # pk로 특정 운행 기록 조회
-            serializer = DrivingRecordSerializer(record)
-            return Response({
-                "message": "운행 기록 조회가 성공적으로 완료되었습니다.",
-                "record": serializer.data
-            }, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({
-                "message": "운행 기록 조회에 실패했습니다.",
-                "error": str(e)
-            }, status=status.HTTP_404_NOT_FOUND)
-
-    def put(self, request, pk):
-        record = get_object_or_404(DrivingRecord, pk=pk)  # pk로 특정 운행 기록 조회
-        serializer = DrivingRecordSerializer(record, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()  # 수정된 내용을 데이터베이스에 저장
-            return Response({
-                "message": "운행 기록이 성공적으로 수정되었습니다.",
-                "record": serializer.data
-            }, status=status.HTTP_200_OK)
-        return Response({
-            "message": "운행 기록 수정에 실패했습니다.",
-            "errors": serializer.errors
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        record = get_object_or_404(DrivingRecord, pk=pk)  # pk로 특정 운행 기록 조회
-        record.delete()  # 운행 기록 삭제
-        return Response({
-            "message": "운행 기록이 성공적으로 삭제되었습니다."
-        }, status=status.HTTP_204_NO_CONTENT)
 
 
 
@@ -693,4 +618,82 @@ class ExpenseDetailView(APIView):
         expense.delete()
         return Response({
             "message": "지출 내역이 성공적으로 삭제되었습니다."
+        }, status=status.HTTP_204_NO_CONTENT)
+
+
+
+# 운행 기록 목록 및 생성 처리
+class DrivingRecordListCreateView(APIView):
+    """
+    POST: 새로운 운행 기록 생성
+    """
+    def post(self, request):
+        serializer = DrivingRecordSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()  # 유효성 검사를 통과한 경우 데이터베이스에 저장
+            return Response({
+                "message": "운행 기록이 성공적으로 생성되었습니다.",
+                "record": serializer.data  # 생성된 운행 기록 반환
+            }, status=status.HTTP_201_CREATED)
+        return Response({
+            "message": "운행 기록 생성에 실패했습니다.",
+            "errors": serializer.errors  # 유효성 검사 오류 반환
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class DrivingRecordListView(APIView):
+    """
+    GET: 전체 운행 기록 목록 조회
+    """
+    def get(self, request):
+        records = DrivingRecord.objects.all()  # 모든 운행 기록 가져오기
+        serializer = DrivingRecordSerializer(records, many=True)  # 여러 개의 운행 기록 직렬화
+        return Response({
+            "message": "운행 기록 목록 조회가 성공적으로 완료되었습니다.",
+            "records": serializer.data  # 운행 기록 목록 반환
+        }, status=status.HTTP_200_OK)
+
+
+
+# 특정 운행 기록 조회, 수정 및 삭제 처리
+class DrivingRecordDetailView(APIView):
+    """
+    GET: 특정 운행 기록 조회
+    PUT: 특정 운행 기록 수정
+    DELETE: 특정 운행 기록 삭제
+    """
+    def get(self, request, pk):
+        try:
+            record = get_object_or_404(DrivingRecord, pk=pk)  # pk로 특정 운행 기록 조회
+            serializer = DrivingRecordSerializer(record)
+            return Response({
+                "message": "운행 기록 조회가 성공적으로 완료되었습니다.",
+                "record": serializer.data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "message": "운행 기록 조회에 실패했습니다.",
+                "error": str(e)
+            }, status=status.HTTP_404_NOT_FOUND)
+
+    def put(self, request, pk):
+        record = get_object_or_404(DrivingRecord, pk=pk)  # pk로 특정 운행 기록 조회
+        serializer = DrivingRecordSerializer(record, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()  # 수정된 내용을 데이터베이스에 저장
+            return Response({
+                "message": "운행 기록이 성공적으로 수정되었습니다.",
+                "record": serializer.data
+            }, status=status.HTTP_200_OK)
+        return Response({
+            "message": "운행 기록 수정에 실패했습니다.",
+            "errors": serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        record = get_object_or_404(DrivingRecord, pk=pk)  # pk로 특정 운행 기록 조회
+        record.delete()  # 운행 기록 삭제
+        return Response({
+            "message": "운행 기록이 성공적으로 삭제되었습니다."
         }, status=status.HTTP_204_NO_CONTENT)

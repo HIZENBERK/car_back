@@ -101,27 +101,6 @@ class Vehicle(models.Model):
 
 
 
-    # 모델 저장 시 운행 거리 및 운행 시간 계산
-    def save(self, *args, **kwargs):
-        from .models import Vehicle # 임포트 순환 참조 방지를 위해 함수 내부에서 임포트
-        # 출발 전 누적 주행거리를 차량 모델의 누적 거리에서 가져오기
-        if not self.pk:  # 새로운 운행 기록일 경우에만 설정
-            self.departure_mileage = self.vehicle.total_mileage
-    
-        # 운행 거리 계산
-        self.driving_distance = self.arrival_mileage - self.departure_mileage
-        # 운행 시간 계산
-        self.driving_time = self.arrival_time - self.departure_time
-
-        # 도착 후 누적 주행거리를 차량 정보에 저장
-        self.vehicle.total_mileage = self.arrival_mileage
-        self.vehicle.save()
-    
-        super(DrivingRecord, self).save(*args, **kwargs)
-
-    def __str__(self):
-        return f'{self.user.name} - {self.vehicle.vehicle_type} 운행 기록'
-
 
 
 # 정비 기록 모델
@@ -187,7 +166,7 @@ class Expense(models.Model):
         default=PENDING
     )  # 상태
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)  # 사용자 (커스텀 유저 참조)
-    vehicle = models.ForeignKey(Vehicle, on_delete=models.SET_NULL, null=True, blank=True)  # 차량 (선택적)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)  # 차량 참조 (Vehicle 모델 참조)
     details = models.TextField()  # 상세내용
     payment_method = models.CharField(max_length=50)  # 결제수단
     amount = models.DecimalField(max_digits=10, decimal_places=2)  # 금액
@@ -237,3 +216,18 @@ class DrivingRecord(models.Model):
         choices=DRIVING_PURPOSE_CHOICES,
         default=COMMUTING
     )
+
+    def save(self, *args, **kwargs):
+        # 운행 거리 계산 (도착 후 주행거리 - 출발 전 주행거리)
+        self.driving_distance = self.arrival_mileage - self.departure_mileage
+        # 운행 시간 계산 (도착 시간 - 출발 시간)
+        self.driving_time = self.arrival_time - self.departure_time
+
+        # 도착 후 누적 주행거리를 차량 정보에 저장
+        self.vehicle.total_mileage = self.arrival_mileage
+        self.vehicle.save()
+
+        super(DrivingRecord, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.user.name} - {self.vehicle.vehicle_type} 운행 기록'
