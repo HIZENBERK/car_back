@@ -220,3 +220,5 @@ class DrivingRecord(models.Model):
         choices=DRIVING_PURPOSE_CHOICES,
         default=COMMUTING
     )
+    
+    #세트스 11/05-1
