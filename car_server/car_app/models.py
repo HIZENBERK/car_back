@@ -66,10 +66,10 @@ class Vehicle(models.Model):
     vehicle_category = models.CharField(max_length=10)  # 차량 카테고리 예: 내연기관, 전기차, 수소차 등
     vehicle_type = models.CharField(max_length=20)  # 차종 예: K3, 아반떼, K5, 소나타 등
     car_registration_number = models.CharField(max_length=10, unique=True)  # 자동차 등록번호
-    license_plate_number = models.CharField(max_length=10, unique=True)  # 차량 번호(번호판) 차량 등록 페이지에서 차량 등록 번호에 해당됨
+    license_plate_number = models.CharField(max_length=10, unique=True)  # 차량 번호(번호판)
     purchase_date = models.DateField()  # 구매 연/월/일
     purchase_price = models.DecimalField(max_digits=10, decimal_places=2)  # 구매 가격
-    total_mileage = models.PositiveIntegerField()  # 총 주행 거리, 누적 거리 (정수, 음수 불가)
+    total_mileage = models.PositiveIntegerField()  # 총 주행 거리, 누적 거리
     company = models.ForeignKey('Company', on_delete=models.CASCADE, null=True, blank=True)  # 회사 정보 (Company 모델 참조)
     chassis_number = models.CharField(max_length=50, null=True, blank=True)  # 차대 번호
     purchase_type = models.CharField(max_length=20, choices=[
@@ -89,22 +89,52 @@ class Vehicle(models.Model):
     aircon_filter = models.PositiveIntegerField(default=0)  # 에어컨 필터
     brake_pad = models.PositiveIntegerField(default=0)  # 브레이크 패드
     tire = models.PositiveIntegerField(default=0)  # 타이어
+    last_used_date = models.DateField(null=True, blank=True)  # 마지막 사용일
+    last_user = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='last_vehicle_user')  # 마지막 사용자
 
-    @property
-    def last_used_date(self):
-        # 운행 기록 중 가장 최근의 도착 시간을 가져옴
-        last_record = self.drivingrecord_set.order_by('-arrival_time').first()
+    def update_total_mileage(self):
+        """
+        차량의 누적 주행거리를 가장 최근 운행기록의 도착 거리로 업데이트합니다.
+        """
+        last_record = self.drivingrecord_set.order_by('-created_at').first()
         if last_record:
-            return last_record.arrival_time.date()  # 도착 시간을 날짜 형태로 반환
-        return None
+            self.total_mileage = last_record.arrival_mileage
+            self.save()
 
-    @property
-    def last_user(self):
-        # 운행 기록 중 가장 최근의 운전자를 가져옴
-        last_record = self.drivingrecord_set.order_by('-arrival_time').first()
-        if last_record:
-            return last_record.user
-        return None
+    def update_components_usage(self, driving_record):
+        """
+        운행 기록에서 추가된 주행 거리만큼 각 부품의 사용량을 업데이트합니다.
+        """
+        driving_distance = driving_record.driving_distance
+        self.engine_oil_filter += driving_distance
+        self.aircon_filter += driving_distance
+        self.brake_pad += driving_distance
+        self.tire += driving_distance
+        self.save()
+
+    def reset_component_usage(self, component_type):
+        """
+        특정 부품의 사용량을 0으로 초기화합니다. 정비 완료 후 호출할 수 있습니다.
+        """
+        if component_type == 'engine_oil_filter':
+            self.engine_oil_filter = 0
+        elif component_type == 'aircon_filter':
+            self.aircon_filter = 0
+        elif component_type == 'brake_pad':
+            self.brake_pad = 0
+        elif component_type == 'tire':
+            self.tire = 0
+        else:
+            raise ValueError(f"Invalid component type: {component_type}")
+        self.save()
+
+    def update_last_user_and_date(self, driving_record):
+        """
+        마지막 사용자를 운행 기록의 사용자로, 마지막 사용일을 운행 기록의 도착 시간으로 업데이트합니다.
+        """
+        self.last_user = driving_record.user
+        self.last_used_date = driving_record.created_at.date()
+        self.save()
 
     def __str__(self):
         return f'{self.vehicle_type} - {self.license_plate_number}'
@@ -138,6 +168,22 @@ class Maintenance(models.Model):
     maintenance_cost = models.DecimalField(max_digits=10, decimal_places=2)  # 정비 비용
     maintenance_description = models.TextField()  # 정비 내용
     created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
+    
+    def reset_component_usage(self):
+        if self.maintenance_type == self.ENGINE_OIL_CHANGE:
+            self.vehicle.engine_oil_filter = 0
+        elif self.maintenance_type == self.AIR_FILTER_CHANGE:
+            self.vehicle.aircon_filter = 0
+        elif self.maintenance_type == self.BRAKE_PAD_CHANGE:
+            self.vehicle.brake_pad = 0
+        elif self.maintenance_type == self.TIRE_CHANGE:
+            self.vehicle.tire = 0
+        self.vehicle.save()
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # 정비 완료 후 해당 부품의 사용량 초기화
+        self.reset_component_usage()
 
     def __str__(self):
         return f'{self.vehicle.vehicle_type} - {self.maintenance_type} 정비 기록'
@@ -219,18 +265,6 @@ class DrivingRecord(models.Model):
         default=COMMUTING
     )
     
-    @property # 차량 누적 주행 거리 업데이트
-    def update_total_mileage(self):
-        last_record = self.drivingrecord_set.order_by('-created_at').first()
-        if last_record:
-            self.total_mileage = last_record.arrival_mileage
-            self.save()
     
     def __str__(self):
         return f'{self.vehicle_type} - {self.license_plate_number}'
-    
-    
-
-
-
-# 11/6 노트북

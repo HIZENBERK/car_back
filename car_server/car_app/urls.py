@@ -33,7 +33,7 @@ urlpatterns = [
     path('expenses/<int:pk>/', ExpenseDetailView.as_view(), name='expense-detail'), # 특정 지출 내역 조회, 수정, 삭제
     
     # 운행 관련
-    path('driving-records/create', DrivingRecordListCreateView.as_view(), name='driving-record-list-create'),  # 운행 기록 생성
+    path('driving-records/create/', DrivingRecordListCreateView.as_view(), name='driving-record-list-create'),  # 운행 기록 생성
     path('driving-records/', DrivingRecordListView.as_view(), name='driving-record-list'),  # 전체 운행 기록 조회
     path('driving-records/<int:pk>/', DrivingRecordDetailView.as_view(), name='driving-record-detail'),  # 특정 운행 기록 조회, 수정, 삭제
 ]

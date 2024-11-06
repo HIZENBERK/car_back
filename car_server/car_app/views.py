@@ -506,7 +506,8 @@ class DrivingRecordListCreateView(APIView):
     POST: 새로운 운행 기록 생성
     """
     def post(self, request):
-        serializer = DrivingRecordSerializer(data=request.data)
+        # context에 request를 추가하여 serializer에서 현재 사용자 정보에 접근 가능하도록 설정
+        serializer = DrivingRecordSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()  # 유효성 검사를 통과한 경우 데이터베이스에 저장
             return Response({
@@ -697,7 +698,3 @@ class ExpenseDetailView(APIView):
         return Response({
             "message": "지출 내역이 성공적으로 삭제되었습니다."
         }, status=status.HTTP_204_NO_CONTENT)
-
-
-
-# 11/6 노트북

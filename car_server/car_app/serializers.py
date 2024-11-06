@@ -228,8 +228,8 @@ class NoticeSerializer(serializers.ModelSerializer):
 # 차량 정보를 처리하는 Serializer
 class VehicleSerializer(serializers.ModelSerializer):
     company_name = serializers.CharField(source='company.name', read_only=True)  # 로그인한 사용자의 회사명 반환
-    last_user = serializers.SerializerMethodField()  # 마지막 사용자 반환
-    last_used_date = serializers.SerializerMethodField()  # 마지막 사용일 반환
+    last_user = serializers.CharField(source='last_user.name', read_only=True)  # 마지막 사용자 반환
+    last_used_date = serializers.DateField(read_only=True)  # 마지막 사용일 반환
 
     class Meta:
         model = Vehicle
@@ -259,14 +259,6 @@ class VehicleSerializer(serializers.ModelSerializer):
         validated_data['company'] = request.user.company  # 로그인한 사용자의 회사로 자동 설정
         vehicle = Vehicle.objects.create(**validated_data)
         return vehicle
-
-    def get_last_user(self, obj):
-        last_record = obj.drivingrecord_set.order_by('-created_at').first()
-        return last_record.user.name if last_record else None
-
-    def get_last_used_date(self, obj):
-        last_record = obj.drivingrecord_set.order_by('-created_at').first()
-        return last_record.created_at if last_record else None
 
 
 
@@ -340,48 +332,50 @@ class ExpenseSerializer(serializers.ModelSerializer):
 
 # 운행 기록을 처리하는 Serializer
 class DrivingRecordSerializer(serializers.ModelSerializer):
-    vehicle_info = serializers.SerializerMethodField()  # 차량 정보 추가
-    user_info = serializers.SerializerMethodField()  # 사용자 정보 추가
-    maintenances = MaintenanceSerializer(many=True, read_only=True)  # 정비 기록 추가
-    expenses = serializers.PrimaryKeyRelatedField(queryset=Expense.objects.all(), many=True)  # 지출 내역 추가
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())  # 로그인한 사용자의 계정을 자동 설정
 
     class Meta:
         model = DrivingRecord
         fields = [
             'id',                    # 운행 기록 ID (자동 생성)
-            'vehicle',               # 차량 참조
-            'vehicle_info',          # 차량 정보 (추가 필드)
-            'user',                  # 사용자 참조
-            'user_info',             # 사용자 정보 (추가 필드)
+            'vehicle',               # 차량 참조 (직접 선택)
+            'user',                  # 사용자 (로그인한 사용자로 자동 설정)
             'departure_location',    # 출발지
             'arrival_location',      # 도착지
-            'departure_mileage',     # 출발 전 주행거리
-            'arrival_mileage',       # 도착 후 주행거리
+            'departure_mileage',     # 출발 전 누적 주행거리
+            'arrival_mileage',       # 도착 후 누적 주행거리
             'driving_distance',      # 운행 거리
             'departure_time',        # 출발 시간
             'arrival_time',          # 도착 시간
             'driving_time',          # 운행 시간
             'coordinates',           # 주기적으로 저장된 좌표 정보
             'driving_purpose',       # 운행 목적
-            'maintenances',          # 정비 기록
-            'expenses',              # 지출 내역
             'created_at'             # 생성 일시
         ]
+        read_only_fields = ['driving_distance', 'driving_time', 'created_at']  # 읽기 전용 필드 설정
 
-    def get_vehicle_info(self, obj):
-        return {
-            "vehicle_type": obj.vehicle.vehicle_type,
-            "license_plate_number": obj.vehicle.license_plate_number,
-            "company": obj.vehicle.company.name
-        }
+    def validate(self, data):
+        # 출발 주행거리와 도착 주행거리가 올바른지 확인
+        if data['arrival_mileage'] < data['departure_mileage']:
+            raise serializers.ValidationError("도착 주행거리는 출발 주행거리보다 크거나 같아야 합니다.")
+        return data
 
-    def get_user_info(self, obj):
-        return {
-            "name": obj.user.name,
-            "department": obj.user.department,
-            "position": obj.user.position
-        }
+    def create(self, validated_data):
+        # 운행 거리 및 운행 시간 계산
+        validated_data['driving_distance'] = validated_data['arrival_mileage'] - validated_data['departure_mileage']
+        validated_data['driving_time'] = validated_data['arrival_time'] - validated_data['departure_time']
+        
+        # 운행 기록 생성
+        record = super().create(validated_data)
 
+        # 차량의 누적 주행 거리 업데이트
+        record.vehicle.total_mileage = validated_data['arrival_mileage']
+        record.vehicle.save()
 
+        # 차량의 엔진오일 필터, 에어컨 필터, 브레이크 패드, 타이어의 사용량 업데이트
+        record.vehicle.update_components_usage(record)
 
-# 11/6 노트북
+        # 차량의 마지막 사용일과 마지막 사용자 업데이트
+        record.vehicle.update_last_user_and_date(record)
+
+        return record
