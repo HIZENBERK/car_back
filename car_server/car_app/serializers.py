@@ -264,8 +264,8 @@ class VehicleSerializer(serializers.ModelSerializer):
 
 # 정비 기록을 처리하는 Serializer
 class MaintenanceSerializer(serializers.ModelSerializer):
-    # vehicle_info = serializers.SerializerMethodField()  # 차량 정보 추가
-    # maintenance_type_display = serializers.CharField(source='get_maintenance_type_display')  # 정비 유형 표시
+    vehicle_info = serializers.SerializerMethodField()  # 차량 정보 추가
+    maintenance_type_display = serializers.CharField(source='get_maintenance_type_display', read_only=True)  # 정비 유형의 표시용 값을 반환
 
     class Meta:
         model = Maintenance
@@ -280,12 +280,13 @@ class MaintenanceSerializer(serializers.ModelSerializer):
             'maintenance_description', # 정비 내용
             'created_at'             # 생성 일시
         ]
+        read_only_fields = ['created_at', 'maintenance_type_display']  # 읽기 전용 필드 설정
 
     def get_vehicle_info(self, obj):
         return {
             "vehicle_type": obj.vehicle.vehicle_type,
             "license_plate_number": obj.vehicle.license_plate_number,
-            "company": obj.vehicle.company.name
+            "company": obj.vehicle.company.name if obj.vehicle.company else None
         }
 
 

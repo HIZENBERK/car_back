@@ -170,6 +170,9 @@ class Maintenance(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
     
     def reset_component_usage(self):
+        """
+        특정 부품의 사용량을 0으로 초기화합니다.
+        """
         if self.maintenance_type == self.ENGINE_OIL_CHANGE:
             self.vehicle.engine_oil_filter = 0
         elif self.maintenance_type == self.AIR_FILTER_CHANGE:
@@ -181,6 +184,9 @@ class Maintenance(models.Model):
         self.vehicle.save()
 
     def save(self, *args, **kwargs):
+        """
+        정비 기록 저장 시 부품 사용량 초기화 기능을 호출합니다.
+        """
         super().save(*args, **kwargs)
         # 정비 완료 후 해당 부품의 사용량 초기화
         self.reset_component_usage()

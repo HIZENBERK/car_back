@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import RegisterAdminView, AdminLoginView, RegisterUserView, UserListView, LoginView, LogoutView, NoticeListCreateView, NoticeListView, NoticeDetailView, VehicleCreateView, VehicleListView, VehicleDetailView, DrivingRecordListCreateView, DrivingRecordListView, DrivingRecordDetailView, MaintenanceListCreateView, MaintenanceDetailView, ExpenseListCreateView, ExpenseDetailView
+from .views import RegisterAdminView, AdminLoginView, RegisterUserView, UserListView, UserDetailView, LoginView, LogoutView, NoticeListCreateView, NoticeListView, NoticeDetailView, VehicleCreateView, VehicleListView, VehicleDetailView, DrivingRecordListCreateView, DrivingRecordListView, DrivingRecordDetailView, MaintenanceListCreateView, MaintenanceListView, MaintenanceDetailView, ExpenseListCreateView,ExpenseListView, ExpenseDetailView
 
 # 회원가입 및 로그인 관련 URL 경로 설정
 urlpatterns = [
@@ -11,6 +11,7 @@ urlpatterns = [
     
     # 일반 사용자 관련
     path('users/', UserListView.as_view(), name='user-list'), # 전체 회원 정보 조회
+    path('users/<int:pk>/', UserDetailView.as_view(), name='user-detail'),  # 특정 회원 정보 조회, 수정, 삭제
     path('login/', LoginView.as_view(), name='login'),  # 로그인 경로
     path('logout/', LogoutView.as_view(), name='logout'),  # 로그아웃 URL 설정
     
@@ -25,11 +26,13 @@ urlpatterns = [
     path('vehicles/<str:license_plate_number>/', VehicleDetailView.as_view(), name='vehicle-detail'),  # 특정 차량 조회, 수정, 삭제
     
     # 정비 관련
-    path('maintenances/', MaintenanceListCreateView.as_view(), name='maintenance-list-create'),  # 정비 기록 목록 및 생성
+    path('maintenances/create/', MaintenanceListCreateView.as_view(), name='maintenance-list-create'),  # 정비 기록 생성
+    path('maintenances/', MaintenanceListView.as_view(), name='maintenance-list'),  # 전체 정비 기록 조회
     path('maintenances/<int:pk>/', MaintenanceDetailView.as_view(), name='maintenance-detail'),  # 특정 정비 기록 조회, 수정, 삭제
     
     # 지출 관련
-    path('expenses/', ExpenseListCreateView.as_view(), name='expense-list-create'), # 지출 내역 목록 및 생성
+    path('expenses/create/', ExpenseListCreateView.as_view(), name='expense-list-create'), # 지출 내역 목록 및 생성
+    path('expenses/', ExpenseListView.as_view(), name='expense-list'), # 지출 내역 목록 및 생성
     path('expenses/<int:pk>/', ExpenseDetailView.as_view(), name='expense-detail'), # 특정 지출 내역 조회, 수정, 삭제
     
     # 운행 관련

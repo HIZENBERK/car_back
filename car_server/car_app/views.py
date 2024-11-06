@@ -123,12 +123,10 @@ class RegisterUserView(APIView):
 
 
 
-#회원 정보 조회, 수정, 삭제 처리
+# 회원 정보 전체 조회
 class UserListView(APIView):
     """
     GET: 전체 회원 정보 조회
-    PATCH: 특정 회원 정보 수정
-    DELETE: 특정 회원 삭제
     """
     permission_classes = [IsAuthenticated]
     def get(self, request):
@@ -152,10 +150,36 @@ class UserListView(APIView):
                 "error": str(e)  # 예외 메시지 반환
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+# 특정 회원 정보 조회, 수정, 삭제 처리
+class UserDetailView(APIView):
+    """
+    GET: 특정 회원 정보 조회
+    PATCH: 특정 회원 정보 수정
+    DELETE: 특정 회원 삭제
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, pk):
+        admin = request.user  # 현재 로그인한 관리자
+        if not admin.is_admin:  # 관리자인지 확인
+            return Response({
+                "message": "관리자만 회원 정보를 조회할 수 있습니다."
+            }, status=status.HTTP_403_FORBIDDEN)
+        try:
+            user = get_object_or_404(CustomUser, pk=pk)  # 회원 정보 조회
+            serializer = CustomUserSerializer(user)  # 회원 정보 직렬화
+            return Response({
+                "message": "회원 정보 조회가 성공적으로 완료되었습니다.",
+                "user": serializer.data  # 회원 정보 반환
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "message": "회원 정보 조회 중 오류가 발생했습니다.",
+                "error": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
     def patch(self, request, pk):
-        """
-        특정 회원 정보 수정
-        """
         admin = request.user  # 현재 로그인한 관리자
         if not admin.is_admin:  # 관리자인지 확인
             return Response({
@@ -182,9 +206,6 @@ class UserListView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, pk):
-        """
-        특정 회원 삭제
-        """
         admin = request.user  # 현재 로그인한 관리자
         if not admin.is_admin:  # 관리자인지 확인
             return Response({
@@ -405,7 +426,7 @@ class VehicleCreateView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# 차량 전체 목록 조회
+# 차량 목록 전체 조회
 class VehicleListView(APIView):
     """
     GET: 전체 차량 목록 조회
@@ -583,14 +604,6 @@ class DrivingRecordDetailView(APIView):
 class MaintenanceListCreateView(APIView):
     permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
 
-    def get(self, request):
-        maintenances = Maintenance.objects.filter(vehicle__company=request.user.company)  # 로그인한 사용자의 회사에 소속된 차량의 정비 기록 가져오기
-        serializer = MaintenanceSerializer(maintenances, many=True)
-        return Response({
-            "message": "정비 기록 목록 조회가 성공적으로 완료되었습니다.",
-            "records": serializer.data
-        }, status=status.HTTP_200_OK)
-
     def post(self, request):
         serializer = MaintenanceSerializer(data=request.data)
         if serializer.is_valid():
@@ -603,6 +616,19 @@ class MaintenanceListCreateView(APIView):
             "message": "정비 기록 생성에 실패했습니다.",
             "errors": serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+# 정비 기록 전체 조회
+class MaintenanceListView(APIView):
+    permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
+
+    def get(self, request):
+        maintenances = Maintenance.objects.filter(vehicle__company=request.user.company)  # 로그인한 사용자의 회사에 소속된 차량의 정비 기록 가져오기
+        serializer = MaintenanceSerializer(maintenances, many=True)
+        return Response({
+            "message": "정비 기록 목록 조회가 성공적으로 완료되었습니다.",
+            "records": serializer.data
+        }, status=status.HTTP_200_OK)
 
 
 # 특정 정비 기록 조회, 수정 및 삭제 처리
@@ -644,14 +670,6 @@ class MaintenanceDetailView(APIView):
 class ExpenseListCreateView(APIView):
     permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
 
-    def get(self, request):
-        expenses = Expense.objects.filter(user__company=request.user.company)  # 로그인한 사용자의 회사에 소속된 지출 내역 가져오기
-        serializer = ExpenseSerializer(expenses, many=True)
-        return Response({
-            "message": "지출 내역 목록 조회가 성공적으로 완료되었습니다.",
-            "records": serializer.data
-        }, status=status.HTTP_200_OK)
-
     def post(self, request):
         serializer = ExpenseSerializer(data=request.data)
         if serializer.is_valid():
@@ -664,6 +682,19 @@ class ExpenseListCreateView(APIView):
             "message": "지출 내역 생성에 실패했습니다.",
             "errors": serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+# 지출 관리 목록 전체 조회
+class ExpenseListView(APIView):
+    permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
+
+    def get(self, request):
+        expenses = Expense.objects.filter(user__company=request.user.company)  # 로그인한 사용자의 회사에 소속된 지출 내역 가져오기
+        serializer = ExpenseSerializer(expenses, many=True)
+        return Response({
+            "message": "지출 내역 목록 조회가 성공적으로 완료되었습니다.",
+            "records": serializer.data
+        }, status=status.HTTP_200_OK)
 
 
 # 특정 지출 내역 조회, 수정 및 삭제 처리
