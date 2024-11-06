@@ -204,6 +204,7 @@ class NoticeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notice  # 공지사항 모델과 연결
         fields = [  # 시리얼라이저에 포함할 필드 목록
+            'id',  # 공지사항 ID (자동 생성)
             'company_name',  # 공지사항을 등록한 회사 (회사 정보)
             'title',  # 공지사항 제목
             'content',  # 공지사항 내용
@@ -266,9 +267,6 @@ class VehicleSerializer(serializers.ModelSerializer):
     def get_last_used_date(self, obj):
         last_record = obj.drivingrecord_set.order_by('-created_at').first()
         return last_record.created_at if last_record else None
-
-
-
 
 
 
@@ -383,3 +381,7 @@ class DrivingRecordSerializer(serializers.ModelSerializer):
             "department": obj.user.department,
             "position": obj.user.position
         }
+
+
+
+# 11/6 노트북

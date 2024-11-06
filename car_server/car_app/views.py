@@ -697,3 +697,7 @@ class ExpenseDetailView(APIView):
         return Response({
             "message": "지출 내역이 성공적으로 삭제되었습니다."
         }, status=status.HTTP_204_NO_CONTENT)
+
+
+
+# 11/6 노트북

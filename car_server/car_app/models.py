@@ -1,7 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from datetime import datetime
-import uuid
+import uuid, math
 
 
 
@@ -85,6 +85,10 @@ class Vehicle(models.Model):
     down_payment = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # 선수금 (선택적)
     deposit = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # 보증금 (선택적)
     expiration_date = models.DateField(null=True, blank=True)  # 만기일 (선택적)
+    engine_oil_filter = models.PositiveIntegerField(default=0)  # 엔진오일 필터
+    aircon_filter = models.PositiveIntegerField(default=0)  # 에어컨 필터
+    brake_pad = models.PositiveIntegerField(default=0)  # 브레이크 패드
+    tire = models.PositiveIntegerField(default=0)  # 타이어
 
     @property
     def last_used_date(self):
@@ -198,12 +202,6 @@ class DrivingRecord(models.Model):
     coordinates = models.JSONField()  # 차량 이동 중 주기적으로 저장된 좌표 정보
     created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
 
-    # 운행 중 발생한 정비 기록
-    maintenances = models.ManyToManyField(Maintenance, blank=True)  # 운행 중 발생한 정비 기록 (Many to Many)
-
-    # 운행 중 발생한 지출 내역
-    expenses = models.ManyToManyField(Expense, blank=True)  # 운행 중 발생한 지출 내역 (Many to Many)
-
     # 운행 목적 Choices 설정
     COMMUTING = 'commuting'
     BUSINESS = 'business'
@@ -220,3 +218,19 @@ class DrivingRecord(models.Model):
         choices=DRIVING_PURPOSE_CHOICES,
         default=COMMUTING
     )
+    
+    @property # 차량 누적 주행 거리 업데이트
+    def update_total_mileage(self):
+        last_record = self.drivingrecord_set.order_by('-created_at').first()
+        if last_record:
+            self.total_mileage = last_record.arrival_mileage
+            self.save()
+    
+    def __str__(self):
+        return f'{self.vehicle_type} - {self.license_plate_number}'
+    
+    
+
+
+
+# 11/6 노트북
