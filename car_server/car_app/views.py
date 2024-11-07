@@ -317,7 +317,7 @@ class NoticeListView(APIView):
         # 로그인한 사용자가 속한 회사의 공지사항 전체 조회
         company = request.user.company  # 로그인한 사용자의 회사 정보 가져오기
         notices = Notice.objects.filter(company=company)  # 해당 회사의 공지사항 필터링
-        data = notices.values('title', 'created_at', 'created_by__name')  # 제목, 생성일, 작성자 이름만 가져오기
+        data = notices.values('id', 'title', 'created_at', 'created_by__name')  # 제목, 생성일, 작성자 이름만 가져오기
         return Response({
             "message": "공지사항 목록 조회가 성공적으로 완료되었습니다.",  # 성공 메시지 반환
             "notices": list(data)  # 공지사항 목록 반환 (제목, 작성일, 작성자)
