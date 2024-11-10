@@ -254,6 +254,12 @@ class DrivingRecord(models.Model):
     coordinates = models.JSONField()  # 차량 이동 중 주기적으로 저장된 좌표 정보
     created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
 
+    # 추가 비용 필드
+    fuel_cost = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)  # 유류비
+    toll_fee = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)  # 통행료
+    other_costs = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)  # 기타 비용
+    total_cost = models.DecimalField(max_digits=10, decimal_places=2, editable=False, blank=True, null=True)  # 합계 비용 (유류비, 통행료, 기타 비용의 합)
+
     # 운행 목적 Choices 설정
     COMMUTING = 'commuting'
     BUSINESS = 'business'
@@ -270,7 +276,11 @@ class DrivingRecord(models.Model):
         choices=DRIVING_PURPOSE_CHOICES,
         default=COMMUTING
     )
-    
+
+    def save(self, *args, **kwargs):
+        # 합계 비용 계산 (유류비, 통행료, 기타 비용의 합)
+        self.total_cost = (self.fuel_cost or 0) + (self.toll_fee or 0) + (self.other_costs or 0)
+        super().save(*args, **kwargs)
     
     def __str__(self):
-        return f'{self.vehicle_type} - {self.license_plate_number}'
+        return f'{self.vehicle.vehicle_type} - {self.vehicle.license_plate_number}'

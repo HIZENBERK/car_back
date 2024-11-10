@@ -351,6 +351,10 @@ class DrivingRecordSerializer(serializers.ModelSerializer):
             'driving_time',          # 운행 시간
             'coordinates',           # 주기적으로 저장된 좌표 정보
             'driving_purpose',       # 운행 목적
+            'fuel_cost',             # 유류비
+            'toll_fee',              # 통행료
+            'other_costs',           # 기타 비용
+            'total_cost',            # 합계 비용
             'created_at'             # 생성 일시
         ]
         read_only_fields = ['driving_distance', 'driving_time', 'created_at']  # 읽기 전용 필드 설정
