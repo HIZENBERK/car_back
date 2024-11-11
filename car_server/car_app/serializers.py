@@ -291,46 +291,6 @@ class MaintenanceSerializer(serializers.ModelSerializer):
 
 
 
-# 지출 내역을 처리하는 Serializer
-class ExpenseSerializer(serializers.ModelSerializer):
-    user_info = serializers.SerializerMethodField()  # 사용자 정보 추가
-    vehicle_info = serializers.SerializerMethodField()  # 차량 정보 추가
-
-    class Meta:
-        model = Expense
-        fields = [
-            'id',                   # 지출 내역 ID
-            'expense_type',         # 지출 구분
-            'expense_date',         # 지출 일자
-            'status',               # 상태
-            'user',                 # 사용자 (ID)
-            'user_info',            # 사용자 정보 (추가 필드)
-            'vehicle',              # 차량 (ID)
-            'vehicle_info',         # 차량 정보 (추가 필드)
-            'description',          # 상세 내용
-            'payment_method',       # 결제 수단
-            'amount',               # 금액
-            'receipt_details'       # 영수증 상세
-        ]
-
-    def get_user_info(self, obj):
-        return {
-            "name": obj.user.name,
-            "department": obj.user.department,
-            "position": obj.user.position
-        }
-
-    def get_vehicle_info(self, obj):
-        if obj.vehicle:
-            return {
-                "vehicle_type": obj.vehicle.vehicle_type,
-                "license_plate_number": obj.vehicle.license_plate_number,
-                "company": obj.vehicle.company.name
-            }
-        return None
-
-
-
 # 운행 기록을 처리하는 Serializer
 class DrivingRecordSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())  # 로그인한 사용자의 계정을 자동 설정
@@ -382,5 +342,49 @@ class DrivingRecordSerializer(serializers.ModelSerializer):
 
         # 차량의 마지막 사용일과 마지막 사용자 업데이트
         record.vehicle.update_last_user_and_date(record)
+        
+        
 
         return record
+
+
+
+# 지출 내역을 처리하는 Serializer
+class ExpenseSerializer(serializers.ModelSerializer):
+    user_info = serializers.SerializerMethodField()  # 사용자 정보 추가
+    vehicle_info = serializers.SerializerMethodField()  # 차량 정보 추가
+
+    class Meta:
+        model = Expense
+        fields = [
+            'id',                   # 지출 내역 ID
+            'expense_type',         # 지출 구분
+            'expense_date',         # 지출 일자
+            'status',               # 상태
+            'user',                 # 사용자 (ID)
+            'user_info',            # 사용자 정보 (추가 필드)
+            'vehicle',              # 차량 (ID)
+            'vehicle_info',         # 차량 정보 (추가 필드)
+            'details',              # 지출 및 정비 상세 내용
+            'payment_method',       # 결제 수단
+            'amount',               # 금액
+            'receipt_detail',       # 영수증 상세
+            'created_at'            # 생성 일시
+        ]
+        read_only_fields = ['created_at']
+
+    def get_user_info(self, obj):
+        return {
+            "name": obj.user.name,
+            "department": obj.user.department,
+            "position": obj.user.position
+        }
+
+    def get_vehicle_info(self, obj):
+        if obj.vehicle:
+            return {
+                "vehicle_type": obj.vehicle.vehicle_type,
+                "license_plate_number": obj.vehicle.license_plate_number,
+                "company": obj.vehicle.company.name
+            }
+        return None

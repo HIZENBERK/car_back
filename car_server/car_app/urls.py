@@ -31,7 +31,7 @@ urlpatterns = [
     path('maintenances/<int:pk>/', MaintenanceDetailView.as_view(), name='maintenance-detail'),  # 특정 정비 기록 조회, 수정, 삭제
     
     # 지출 관련
-    path('expenses/create/', ExpenseListCreateView.as_view(), name='expense-list-create'), # 지출 내역 목록 및 생성
+    #path('expenses/create/', ExpenseListCreateView.as_view(), name='expense-list-create'), # 지출 내역 생성
     path('expenses/', ExpenseListView.as_view(), name='expense-list'), # 지출 내역 목록 및 생성
     path('expenses/<int:pk>/', ExpenseDetailView.as_view(), name='expense-detail'), # 특정 지출 내역 조회, 수정, 삭제
     

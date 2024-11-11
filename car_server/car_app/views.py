@@ -686,37 +686,47 @@ class ExpenseListCreateView(APIView):
 
 # 지출 관리 목록 전체 조회
 class ExpenseListView(APIView):
-    permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
+    """
+    GET: 전체 지출 내역 조회
+    """
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        expenses = Expense.objects.filter(user__company=request.user.company)  # 로그인한 사용자의 회사에 소속된 지출 내역 가져오기
+        expenses = Expense.objects.all()
         serializer = ExpenseSerializer(expenses, many=True)
         return Response({
             "message": "지출 내역 목록 조회가 성공적으로 완료되었습니다.",
-            "records": serializer.data
+            "expenses": serializer.data
         }, status=status.HTTP_200_OK)
 
 
-# 특정 지출 내역 조회, 수정 및 삭제 처리
 class ExpenseDetailView(APIView):
-    permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
+    """
+    GET: 특정 지출 내역 조회
+    PATCH: 특정 지출 내역 수정
+    DELETE: 특정 지출 내역 삭제
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk):
+        return get_object_or_404(Expense, pk=pk)
 
     def get(self, request, pk):
-        expense = get_object_or_404(Expense, pk=pk, user__company=request.user.company)
+        expense = self.get_object(pk)
         serializer = ExpenseSerializer(expense)
         return Response({
             "message": "지출 내역 조회가 성공적으로 완료되었습니다.",
-            "record": serializer.data
+            "expense": serializer.data
         }, status=status.HTTP_200_OK)
 
-    def put(self, request, pk):
-        expense = get_object_or_404(Expense, pk=pk, user__company=request.user.company)
+    def patch(self, request, pk):
+        expense = self.get_object(pk)
         serializer = ExpenseSerializer(expense, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response({
                 "message": "지출 내역이 성공적으로 수정되었습니다.",
-                "record": serializer.data
+                "expense": serializer.data
             }, status=status.HTTP_200_OK)
         return Response({
             "message": "지출 내역 수정에 실패했습니다.",
@@ -724,7 +734,7 @@ class ExpenseDetailView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        expense = get_object_or_404(Expense, pk=pk, user__company=request.user.company)
+        expense = self.get_object(pk)
         expense.delete()
         return Response({
             "message": "지출 내역이 성공적으로 삭제되었습니다."

@@ -190,52 +190,28 @@ class Maintenance(models.Model):
         super().save(*args, **kwargs)
         # 정비 완료 후 해당 부품의 사용량 초기화
         self.reset_component_usage()
+    
+        # 지출 내역 자동 생성 로직
+        # 중복 지출 내역 방지를 위해 기존 지출 내역이 있는지 확인
+        if not Expense.objects.filter(
+            expense_type='정비',
+            vehicle=self.vehicle,
+            expense_date=self.created_at.date(),
+            details=self.get_maintenance_type_display()
+        ).exists():
+            Expense.objects.create(
+                expense_type='정비',
+                expense_date=self.created_at.date(),
+                status='대기',
+                user=self.vehicle.last_user,
+                vehicle=self.vehicle,
+                details=self.get_maintenance_type_display(),
+                payment_method='법인카드',
+                amount=self.maintenance_cost,
+            )
 
     def __str__(self):
         return f'{self.vehicle.vehicle_type} - {self.maintenance_type} 정비 기록'
-
-
-
-# 지출 관리 모델
-class Expense(models.Model):
-    EXPENSE = 'expense'
-    MAINTENANCE = 'maintenance'
-    EXPENSE_TYPE_CHOICES = [
-        (EXPENSE, '지출'),
-        (MAINTENANCE, '정비')
-    ]
-    
-    APPROVED = 'approved'
-    PENDING = 'pending'
-    REJECTED = 'rejected'
-    STATUS_CHOICES = [
-        (APPROVED, '승인'),
-        (PENDING, '대기'),
-        (REJECTED, '반려')
-    ]
-    
-    expense_type = models.CharField(
-        max_length=20,
-        choices=EXPENSE_TYPE_CHOICES,
-        default=EXPENSE
-    )  # 구분
-    expense_date = models.DateField()  # 지출 일자
-    status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default=PENDING
-    )  # 상태
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)  # 사용자 (커스텀 유저 참조)
-    vehicle = models.ForeignKey(Vehicle, on_delete=models.SET_NULL, null=True, blank=True)  # 차량 (선택적)
-    details = models.TextField()  # 상세내용
-    payment_method = models.CharField(max_length=50)  # 결제수단
-    amount = models.DecimalField(max_digits=10, decimal_places=2)  # 금액
-    receipt_detail = models.FileField(upload_to='receipts/', null=True, blank=True)  # 영수증 상세 (첨부파일)
-    created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
-
-    def __str__(self):
-        return f'{self.get_expense_type_display()} - {self.amount}원 지출 내역'
-
 
 
 
@@ -281,6 +257,103 @@ class DrivingRecord(models.Model):
         # 합계 비용 계산 (유류비, 통행료, 기타 비용의 합)
         self.total_cost = (self.fuel_cost or 0) + (self.toll_fee or 0) + (self.other_costs or 0)
         super().save(*args, **kwargs)
+        
+        # 지출 내역 자동 생성 로직
+        expense_items = [
+            ('유류비', self.fuel_cost),
+            ('통행료', self.toll_fee),
+            ('기타 비용', self.other_costs)
+        ]
+
+        for description, amount in expense_items:
+            if amount and amount > 0:
+                # 중복 지출 내역 방지를 위해 기존 지출 내역이 있는지 확인
+                if not Expense.objects.filter(
+                    expense_type='지출',
+                    vehicle=self.vehicle,
+                    expense_date=self.created_at.date(),
+                    details=description
+                ).exists():
+                    Expense.objects.create(
+                        expense_type='지출',
+                        expense_date=self.created_at.date(),
+                        status='대기',
+                        user=self.user,
+                        vehicle=self.vehicle,
+                        details=description,
+                        payment_method='법인카드',
+                        amount=amount,
+                    )
     
     def __str__(self):
         return f'{self.vehicle.vehicle_type} - {self.vehicle.license_plate_number}'
+
+
+
+# 지출 관리 모델
+class Expense(models.Model):
+    EXPENSE = 'expense'
+    MAINTENANCE = 'maintenance'
+    EXPENSE_TYPE_CHOICES = [
+        (EXPENSE, '지출'),
+        (MAINTENANCE, '정비')
+    ]
+
+    APPROVED = 'approved'
+    PENDING = 'pending'
+    REJECTED = 'rejected'
+    STATUS_CHOICES = [
+        (APPROVED, '승인'),
+        (PENDING, '대기'),
+        (REJECTED, '반려')
+    ]
+
+    expense_type = models.CharField(
+        max_length=20,
+        choices=EXPENSE_TYPE_CHOICES,
+        default=EXPENSE # 기본값은 지출
+    )  # 구분
+    expense_date = models.DateField()  # 지출 일자
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=PENDING # 기본값은 대기
+    )  # 상태
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)  # 사용자 (커스텀 유저 참조)
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.CASCADE)  # 차량 참조 (Vehicle 모델 참조)
+    details = models.TextField()  # 지출 및 정비 상세 내용
+    payment_method = models.CharField(max_length=50, default='법인카드')  # 결제수단
+    amount = models.DecimalField(max_digits=10, decimal_places=2)  # 금액
+    receipt_detail = models.FileField(upload_to='receipts/', null=True, blank=True)  # 영수증 상세 (첨부파일)
+    created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
+
+    @classmethod
+    def create_from_driving_record(cls, driving_record):
+        # 유류비, 통행료, 기타 비용 각각을 지출 내역으로 생성
+        for cost_type, amount in [('유류비', driving_record.fuel_cost), ('통행료', driving_record.toll_fee), ('기타', driving_record.other_costs)]:
+            if amount and amount > 0:
+                cls.objects.create(
+                    expense_type=cls.EXPENSE,
+                    expense_date=driving_record.created_at.date(),
+                    user=driving_record.user,
+                    vehicle=driving_record.vehicle,
+                    details=f'{cost_type} 지출',
+                    payment_method='법인카드',  # 결제 수단은 임의로 설정 가능
+                    amount=amount
+                )
+
+    @classmethod
+    def create_from_maintenance(cls, maintenance):
+        # 정비 유형에 따른 지출 내역 생성
+        cls.objects.create(
+            expense_type=cls.MAINTENANCE,
+            expense_date=maintenance.created_at.date(),
+            user=maintenance.vehicle.last_user,  # 정비한 차량의 마지막 사용자
+            vehicle=maintenance.vehicle,
+            details=f'{maintenance.get_maintenance_type_display()} 정비',
+            payment_method='법인카드',  # 결제 수단은 임의로 설정 가능
+            amount=maintenance.maintenance_cost
+        )
+
+    def __str__(self):
+        return f'{self.get_expense_type_display()} - {self.amount}원 지출 내역'
