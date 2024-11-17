@@ -1,3 +1,5 @@
+import os
+from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -701,6 +703,7 @@ class ExpenseListView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+# 특정 지출 관리 조회, 수정 및 삭제 처리
 class ExpenseDetailView(APIView):
     """
     GET: 특정 지출 내역 조회
@@ -721,8 +724,13 @@ class ExpenseDetailView(APIView):
         }, status=status.HTTP_200_OK)
 
     def patch(self, request, pk):
+        # MEDIA_ROOT 경로에 media 폴더가 없으면 생성합니다.
+        if not os.path.exists(settings.MEDIA_ROOT):
+            os.makedirs(settings.MEDIA_ROOT)
+            
         expense = self.get_object(pk)
         serializer = ExpenseSerializer(expense, data=request.data, partial=True)
+        
         if serializer.is_valid():
             serializer.save()
             return Response({

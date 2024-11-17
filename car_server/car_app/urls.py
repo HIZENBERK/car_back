@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.conf.urls.static import static
 from django.urls import path
 from .views import RegisterAdminView, AdminLoginView, RegisterUserView, UserListView, UserDetailView, LoginView, LogoutView, NoticeListCreateView, NoticeListView, NoticeDetailView, VehicleCreateView, VehicleListView, VehicleDetailView, DrivingRecordListCreateView, DrivingRecordListView, DrivingRecordDetailView, MaintenanceListCreateView, MaintenanceListView, MaintenanceDetailView, ExpenseListCreateView,ExpenseListView, ExpenseDetailView
 
@@ -41,3 +43,7 @@ urlpatterns = [
     path('driving-records/', DrivingRecordListView.as_view(), name='driving-record-list'),  # 전체 운행 기록 조회
     path('driving-records/<int:pk>/', DrivingRecordDetailView.as_view(), name='driving-record-detail'),  # 특정 운행 기록 조회, 수정, 삭제
 ]
+
+# DEBUG 모드에서만 미디어 파일을 서빙하도록 설정
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
