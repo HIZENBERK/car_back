@@ -23,7 +23,8 @@ urlpatterns = [
     # 차량 관련
     path('vehicles/create/', VehicleCreateView.as_view(), name='vehicle-create'),  # 차량 등록
     path('vehicles/', VehicleListView.as_view(), name='vehicle-list'),  # 차량 전체 목록 조회
-    path('vehicles/<str:license_plate_number>/', VehicleDetailView.as_view(), name='vehicle-detail'),  # 특정 차량 조회, 수정, 삭제
+    path('vehicles/<int:vehicle_id>/', VehicleDetailView.as_view(), name='vehicle-detail'),  # 특정 차량 조회, 수정, 삭제
+
     
     # 정비 관련
     path('maintenances/create/', MaintenanceListCreateView.as_view(), name='maintenance-list-create'),  # 정비 기록 생성

@@ -463,10 +463,10 @@ class VehicleDetailView(APIView):
     """
     permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
 
-    def get(self, request, license_plate_number):
+    def get(self, request, vehicle_id):
         try:
-            # 번호판으로 차량 조회
-            vehicle = get_object_or_404(Vehicle, license_plate_number=license_plate_number, company=request.user.company)
+            # 차량 ID로 차량 조회
+            vehicle = get_object_or_404(Vehicle, id=vehicle_id, company=request.user.company)
             serializer = VehicleSerializer(vehicle)
             return Response({
                 "vehicle": serializer.data
@@ -477,14 +477,14 @@ class VehicleDetailView(APIView):
                 "error": str(e)  # 예외 메시지 반환
             }, status=status.HTTP_404_NOT_FOUND)
 
-    def patch(self, request, license_plate_number):
+    def patch(self, request, vehicle_id):
         if not request.user.is_admin:  # 관리자인지 확인
             return Response({
                 "message": "관리자만 차량 정보를 수정할 수 있습니다."
             }, status=status.HTTP_403_FORBIDDEN)
         try:
-            # 번호판으로 차량 조회
-            vehicle = get_object_or_404(Vehicle, license_plate_number=license_plate_number, company=request.user.company)
+            # 차량 ID로 차량 조회
+            vehicle = get_object_or_404(Vehicle, id=vehicle_id, company=request.user.company)
             serializer = VehicleSerializer(vehicle, data=request.data, partial=True, context={'request': request})  # 부분 업데이트 허용
             if serializer.is_valid():
                 serializer.save()  # 인증된 사용자의 정보와 함께 업데이트
@@ -502,14 +502,14 @@ class VehicleDetailView(APIView):
                 "error": str(e)  # 예외 메시지 반환
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def delete(self, request, license_plate_number):
+    def delete(self, request, vehicle_id):
         if not request.user.is_admin:  # 관리자인지 확인
             return Response({
                 "message": "관리자만 차량을 삭제할 수 있습니다."
             }, status=status.HTTP_403_FORBIDDEN)
         try:
-            # 번호판으로 차량 조회 후 삭제
-            vehicle = get_object_or_404(Vehicle, license_plate_number=license_plate_number, company=request.user.company)
+            # 차량 ID로 차량 조회 후 삭제
+            vehicle = get_object_or_404(Vehicle, id=vehicle_id, company=request.user.company)
             vehicle.delete()  # 차량 삭제
             return Response({
                 "message": "차량이 성공적으로 삭제되었습니다."
