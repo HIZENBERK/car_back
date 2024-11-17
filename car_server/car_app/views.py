@@ -151,6 +151,7 @@ class UserListView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+
 # 특정 회원 정보 조회, 수정, 삭제 처리
 class UserDetailView(APIView):
     """
@@ -161,8 +162,8 @@ class UserDetailView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request, pk):
-        admin = request.user  # 현재 로그인한 관리자
-        if not admin.is_admin:  # 관리자인지 확인
+        user = request.user  # 현재 로그인한 사용자
+        if not user.is_admin and user.pk != pk:  # 관리자가 아니고 본인이 아닌 경우
             return Response({
                 "message": "관리자만 회원 정보를 조회할 수 있습니다."
             }, status=status.HTTP_403_FORBIDDEN)
@@ -180,14 +181,14 @@ class UserDetailView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def patch(self, request, pk):
-        admin = request.user  # 현재 로그인한 관리자
-        if not admin.is_admin:  # 관리자인지 확인
+        user = request.user  # 현재 로그인한 사용자
+        if not user.is_admin and user.pk != pk:  # 관리자가 아니고 본인이 아닌 경우
             return Response({
-                "message": "관리자만 사용자를 수정할 수 있습니다."
+                "message": "본인만 사용자를 수정할 수 있습니다."
             }, status=status.HTTP_403_FORBIDDEN)
         try:
-            user = get_object_or_404(CustomUser, pk=pk)  # 회원 정보 조회
-            serializer = CustomUserSerializer(user, data=request.data, partial=True)  # 부분 업데이트 허용
+            user_to_update = get_object_or_404(CustomUser, pk=pk)  # 회원 정보 조회
+            serializer = CustomUserSerializer(user_to_update, data=request.data, partial=True)  # 부분 업데이트 허용
             if serializer.is_valid():
                 serializer.save()  # 회원 정보 업데이트
                 return Response({
