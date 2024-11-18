@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path
-from .views import RegisterAdminView, AdminLoginView, RegisterUserView, UserListView, UserDetailView, LoginView, LogoutView, NoticeListCreateView, NoticeListView, NoticeDetailView, VehicleCreateView, VehicleListView, VehicleDetailView, DrivingRecordListCreateView, DrivingRecordListView, DrivingRecordDetailView, MaintenanceListCreateView, MaintenanceListView, MaintenanceDetailView, ExpenseListCreateView,ExpenseListView, ExpenseDetailView
+from .views import RegisterAdminView, AdminLoginView, RegisterUserView, UserListView, UserDetailView, LoginView, LogoutView, NoticeListCreateView, NoticeListView, NoticeDetailView, VehicleCreateView, VehicleListView, VehicleDetailView, DrivingRecordListCreateView, DrivingRecordListView, DrivingRecordDetailView, MaintenanceListCreateView, MaintenanceListView, MaintenanceDetailView, ExpenseListCreateView,ExpenseListView, ExpenseDetailView, CurrentUserView
 
 # 회원가입 및 로그인 관련 URL 경로 설정
 urlpatterns = [
@@ -16,6 +16,7 @@ urlpatterns = [
     path('users/<int:pk>/', UserDetailView.as_view(), name='user-detail'),  # 특정 회원 정보 조회, 수정, 삭제
     path('login/', LoginView.as_view(), name='login'),  # 로그인 경로
     path('logout/', LogoutView.as_view(), name='logout'),  # 로그아웃 URL 설정
+    path('users/me/', CurrentUserView.as_view(), name='current-user'),  # 현재 로그인된 회원 정보 조회, 수정
     
     # 공지사항 관련
     path('notices/create/', NoticeListCreateView.as_view(), name='notice-list-create'),  # 회사별 공지사항 생성

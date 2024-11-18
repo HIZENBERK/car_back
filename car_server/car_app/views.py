@@ -228,6 +228,40 @@ class UserDetailView(APIView):
 
 
 
+# 현재 로그인한 사용자 정보 조회 및 수정
+class CurrentUserView(APIView):
+    """
+    현재 로그인된 사용자의 정보 조회 및 수정
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        GET: 현재 로그인한 사용자의 정보 조회
+        """
+        user = request.user
+        serializer = CustomUserSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request):
+        """
+        PATCH: 현재 로그인한 사용자의 정보 수정
+        """
+        user = request.user
+        serializer = CustomUserSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                "message": "사용자 정보가 성공적으로 수정되었습니다.",
+                "user": serializer.data
+            }, status=status.HTTP_200_OK)
+        return Response({
+            "message": "사용자 정보 수정에 실패했습니다.",
+            "errors": serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
+
 # 로그인 요청을 처리하는 View (일반 사용자 전용)
 class LoginView(APIView):
     """
