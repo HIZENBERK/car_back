@@ -149,6 +149,7 @@ class RegisterUserSerializer(serializers.ModelSerializer):
         user = CustomUser(**validated_data)
         user.company = company  # 관리자의 회사 정보 설정
         user.is_admin = False  # 일반 사용자로 설정
+        user.is_banned = False  # 사용자 차단 여부(기본 False)
         user.set_password(validated_data['password'])
         user.save()
 
@@ -168,6 +169,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
             'phone_number',             # 전화번호
             'company',                  # 회사 정보 (회사 시리얼라이저로 처리)
             'is_admin',                 # 관리자 여부
+            'is_banned',                # 차단 여부
             'department',               # 부서명
             'position',                 # 직급
             'name',                     # 이름

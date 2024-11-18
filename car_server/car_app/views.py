@@ -239,6 +239,13 @@ class LoginView(APIView):
         if serializer.is_valid(raise_exception=True):  # 데이터 검증
             user = serializer.validated_data  # 검증된 사용자 데이터
 
+            # 밴 여부 확인
+            if user.is_banned:
+                return Response({
+                    "message": "로그인에 실패했습니다.",
+                    "error": "이 계정은 사용이 제한되었습니다. 관리자에게 문의하세요."
+                }, status=status.HTTP_403_FORBIDDEN)
+
             # JWT 토큰 생성
             refresh = RefreshToken.for_user(user)
             user_info_serializer = CustomUserSerializer(user)  # 사용자 정보 시리얼라이저

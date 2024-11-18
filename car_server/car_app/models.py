@@ -28,6 +28,7 @@ class CustomUser(AbstractUser):
     usage_distance = models.IntegerField(default=0)  # 사용 거리
     unpaid_penalties = models.IntegerField(default=0)  # 미납 과태료
     is_admin = models.BooleanField(default=False)  # 관리자 여부
+    is_banned = models.BooleanField(default=False)  # 사용 제한 여부 (ban 유저 여부)
     created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
 
 
