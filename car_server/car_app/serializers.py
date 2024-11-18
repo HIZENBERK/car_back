@@ -217,6 +217,9 @@ class CustomUserSerializer(serializers.ModelSerializer):
 
 
 
+
+
+
 # 로그인 시 데이터를 검증하고 JWT 토큰을 반환하는 Serializer
 class LoginSerializer(serializers.Serializer):
     email_or_phone = serializers.CharField()  # 이메일 또는 전화번호
@@ -341,6 +344,7 @@ class DrivingRecordSerializer(serializers.ModelSerializer):
             'id',                    # 운행 기록 ID (자동 생성)
             'vehicle',               # 차량 참조 (직접 선택)
             'user',                  # 사용자 (로그인한 사용자로 자동 설정)
+            'user_id',               # 사용자 ID (자동 설정)
             'departure_location',    # 출발지
             'arrival_location',      # 도착지
             'departure_mileage',     # 출발 전 누적 주행거리
