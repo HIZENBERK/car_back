@@ -154,12 +154,16 @@ class RegisterUserSerializer(serializers.ModelSerializer):
         user.save()
 
         return user
+    
+    
 
 
 
 # 사용자 정보 조회 시리얼라이저
 class CustomUserSerializer(serializers.ModelSerializer):
     company = CompanySerializer()  # 회사 정보 포함
+    password = serializers.CharField(write_only=True, required=False, style={'input_type': 'password'}, label="Password")
+    password2 = serializers.CharField(write_only=True, required=False, style={'input_type': 'password'}, label="Confirm Password")
 
     class Meta:
         model = CustomUser
@@ -174,8 +178,42 @@ class CustomUserSerializer(serializers.ModelSerializer):
             'position',                 # 직급
             'name',                     # 이름
             'usage_distance',           # 사용 거리
-            'unpaid_penalties'          # 미납 과태료
+            'unpaid_penalties',         # 미납 과태료
+            'created_at',               # 생성 일시
+            'password',                 # 비밀번호 (작성 전용)
+            'password2'                 # 비밀번호 확인 (작성 전용)
         ]
+        read_only_fields = ['is_admin', 'created_at']  # 읽기 전용 필드 설정
+        extra_kwargs = {
+            'password': {'write_only': True, 'required': False},  # 비밀번호는 작성 전용으로 설정, 필수 아님
+        }
+
+    def validate(self, attrs):
+        # 비밀번호와 비밀번호 확인이 일치하는지 확인
+        password = attrs.get('password')
+        password2 = attrs.pop('password2', None)
+        if password and password != password2:
+            raise serializers.ValidationError({"password": "비밀번호가 일치하지 않습니다."})
+        
+        # Django 기본 비밀번호 유효성 검사
+        if password:
+            try:
+                validate_password(password)
+            except ValidationError as e:
+                raise serializers.ValidationError({"password": e.messages})
+
+        return attrs
+
+    def update(self, instance, validated_data):
+        # 비밀번호가 있으면 set_password()를 사용하여 안전하게 설정
+        password = validated_data.pop('password', None)
+        validated_data.pop('password2', None)  # 비밀번호 확인 필드 제거
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)  # Django 기본 메서드를 사용하여 비밀번호 해싱 후 저장
+        instance.save()
+        return instance
 
 
 
