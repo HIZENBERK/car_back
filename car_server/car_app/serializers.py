@@ -291,6 +291,10 @@ class VehicleSerializer(serializers.ModelSerializer):
             'chassis_number',          # 차대 번호
             'purchase_type',           # 구매 유형 (매매, 리스, 렌트 등)
             'current_status',          # 차량 현재 상황 (가용차량, 사용불가, 삭제)
+            'engine_oil_filter',       # 엔진오일 필터
+            'aircon_filter',           # 에어컨 필터
+            'brake_pad',               # 브레이크 패드
+            'tire',                    # 타이어
             'down_payment',            # 선수금
             'deposit',                 # 보증금
             'expiration_date',         # 만기일
