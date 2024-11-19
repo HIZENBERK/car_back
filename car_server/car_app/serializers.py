@@ -337,6 +337,9 @@ class MaintenanceSerializer(serializers.ModelSerializer):
 
 # 운행 기록을 처리하는 Serializer
 class DrivingRecordSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source='user.name', read_only=True)  # 사용자 이름 추가
+    vehicle_type = serializers.CharField(source='vehicle.vehicle_type', read_only=True)  # 차량 차종 추가
+
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())  # 로그인한 사용자의 계정을 자동 설정
 
     class Meta:
@@ -346,6 +349,8 @@ class DrivingRecordSerializer(serializers.ModelSerializer):
             'vehicle',               # 차량 참조 (직접 선택)
             'user',                  # 사용자 (로그인한 사용자로 자동 설정)
             'user_id',               # 사용자 ID (자동 설정)
+            'user_name',             # 사용자 이름
+            'vehicle_type',          # 차량 차종
             'departure_location',    # 출발지
             'arrival_location',      # 도착지
             'departure_mileage',     # 출발 전 누적 주행거리
@@ -388,8 +393,6 @@ class DrivingRecordSerializer(serializers.ModelSerializer):
         # 차량의 마지막 사용일과 마지막 사용자 업데이트
         record.vehicle.update_last_user_and_date(record)
         
-        
-
         return record
 
 
