@@ -339,33 +339,35 @@ class MaintenanceSerializer(serializers.ModelSerializer):
 class DrivingRecordSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source='user.name', read_only=True)  # 사용자 이름 추가
     vehicle_type = serializers.CharField(source='vehicle.vehicle_type', read_only=True)  # 차량 차종 추가
+    vehicle_license_plate_number = serializers.CharField(source='vehicle.license_plate_number', read_only=True)  # 차량 번호판 추가
 
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())  # 로그인한 사용자의 계정을 자동 설정
 
     class Meta:
         model = DrivingRecord
         fields = [
-            'id',                    # 운행 기록 ID (자동 생성)
-            'vehicle',               # 차량 참조 (직접 선택)
-            'user',                  # 사용자 (로그인한 사용자로 자동 설정)
-            'user_id',               # 사용자 ID (자동 설정)
-            'user_name',             # 사용자 이름
-            'vehicle_type',          # 차량 차종
-            'departure_location',    # 출발지
-            'arrival_location',      # 도착지
-            'departure_mileage',     # 출발 전 누적 주행거리
-            'arrival_mileage',       # 도착 후 누적 주행거리
-            'driving_distance',      # 운행 거리
-            'departure_time',        # 출발 시간
-            'arrival_time',          # 도착 시간
-            'driving_time',          # 운행 시간
-            'coordinates',           # 주기적으로 저장된 좌표 정보
-            'driving_purpose',       # 운행 목적
-            'fuel_cost',             # 유류비
-            'toll_fee',              # 통행료
-            'other_costs',           # 기타 비용
-            'total_cost',            # 합계 비용
-            'created_at'             # 생성 일시
+            'id',                            # 운행 기록 ID (자동 생성)
+            'vehicle',                       # 차량 참조 (직접 선택)
+            'user',                          # 사용자 (로그인한 사용자로 자동 설정)
+            'user_id',                       # 사용자 ID (자동 설정)
+            'user_name',                     # 사용자 이름
+            'vehicle_type',                  # 차량 차종
+            'vehicle_license_plate_number',  # 차량 번호판
+            'departure_location',            # 출발지
+            'arrival_location',              # 도착지
+            'departure_mileage',             # 출발 전 누적 주행거리
+            'arrival_mileage',               # 도착 후 누적 주행거리
+            'driving_distance',              # 운행 거리
+            'departure_time',                # 출발 시간
+            'arrival_time',                  # 도착 시간
+            'driving_time',                  # 운행 시간
+            'coordinates',                   # 주기적으로 저장된 좌표 정보
+            'driving_purpose',               # 운행 목적
+            'fuel_cost',                     # 유류비
+            'toll_fee',                      # 통행료
+            'other_costs',                   # 기타 비용
+            'total_cost',                    # 합계 비용
+            'created_at'                     # 생성 일시
         ]
         read_only_fields = ['driving_distance', 'driving_time', 'created_at']  # 읽기 전용 필드 설정
 
