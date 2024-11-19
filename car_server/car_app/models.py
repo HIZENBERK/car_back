@@ -168,7 +168,7 @@ class Maintenance(models.Model):
         default=OTHER
     )  # 정비 유형
     maintenance_cost = models.DecimalField(max_digits=10, decimal_places=2)  # 정비 비용
-    maintenance_description = models.TextField()  # 정비 내용
+    maintenance_description = models.TextField(null=True, blank=True)  # 정비 내용
     created_at = models.DateTimeField(auto_now_add=True)  # 생성 일시
     
     def reset_component_usage(self):
