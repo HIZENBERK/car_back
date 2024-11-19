@@ -92,6 +92,7 @@ class Vehicle(models.Model):
     tire = models.PositiveIntegerField(default=0)  # 타이어
     last_used_date = models.DateField(null=True, blank=True)  # 마지막 사용일
     last_user = models.ForeignKey('CustomUser', on_delete=models.SET_NULL, null=True, blank=True, related_name='last_vehicle_user')  # 마지막 사용자
+    car_icon = models.FileField(upload_to='car_icon/', null=True, blank=True)  # 영수증 상세 (첨부파일)
 
     def update_total_mileage(self):
         """

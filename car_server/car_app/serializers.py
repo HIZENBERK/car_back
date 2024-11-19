@@ -287,6 +287,7 @@ class VehicleSerializer(serializers.ModelSerializer):
             'total_mileage',           # 총 주행 거리
             'last_used_date',          # 마지막 사용일
             'last_user',               # 마지막 사용자 (자동 설정)
+            'car_icon',                # 차량 아이콘 (이미지)
             'chassis_number',          # 차대 번호
             'purchase_type',           # 구매 유형 (매매, 리스, 렌트 등)
             'current_status',          # 차량 현재 상황 (가용차량, 사용불가, 삭제)
