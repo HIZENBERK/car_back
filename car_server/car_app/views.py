@@ -591,21 +591,25 @@ class DrivingRecordListCreateView(APIView):
 
 class DrivingRecordListView(APIView):
     """
-    GET: 전체 운행 기록 목록 조회
+    GET: 로그인한 사용자의 회사와 일치하는 전체 운행 기록 목록 조회
     """
     permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
     
     def get(self, request):
-        records = Vehicle.objects.filter(company=request.user.company)  # 로그인한 사용자의 회사에 소속된 차량만 가져오기
+        user_company = request.user.company  # 로그인한 사용자의 회사 정보 가져오기
+        if not user_company:
+            return Response({
+                "message": "회사가 등록되지 않은 사용자입니다."
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 로그인한 사용자의 회사에 해당하는 차량의 운행 기록만 가져오기
+        records = DrivingRecord.objects.filter(vehicle__company=user_company)
         serializer = DrivingRecordSerializer(records, many=True)  # 여러 개의 운행 기록 직렬화
         return Response({
             "message": "운행 기록 목록 조회가 성공적으로 완료되었습니다.",
             "records": serializer.data  # 운행 기록 목록 반환
         }, status=status.HTTP_200_OK)
 
-
-
-# 특정 운행 기록 조회, 수정 및 삭제 처리
 class DrivingRecordDetailView(APIView):
     """
     GET: 특정 운행 기록 조회
@@ -613,10 +617,17 @@ class DrivingRecordDetailView(APIView):
     DELETE: 특정 운행 기록 삭제
     """
     permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
-    
+
     def get(self, request, pk):
         try:
-            record = get_object_or_404(DrivingRecord, pk=pk, company=request.user.company)  # pk로 특정 운행 기록 조회
+            user_company = request.user.company  # 로그인한 사용자의 회사 정보 가져오기
+            if not user_company:
+                return Response({
+                    "message": "회사가 등록되지 않은 사용자입니다."
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # 로그인한 사용자의 회사에 해당하는 차량의 운행 기록만 조회 가능하도록 필터링
+            record = get_object_or_404(DrivingRecord, pk=pk, vehicle__company=user_company)
             serializer = DrivingRecordSerializer(record)
             return Response({
                 "message": "운행 기록 조회가 성공적으로 완료되었습니다.",
@@ -629,7 +640,14 @@ class DrivingRecordDetailView(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
 
     def put(self, request, pk):
-        record = get_object_or_404(DrivingRecord, pk=pk, company=request.user.company)  # pk로 특정 운행 기록 조회
+        user_company = request.user.company
+        if not user_company:
+            return Response({
+                "message": "회사가 등록되지 않은 사용자입니다."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 로그인한 사용자의 회사에 해당하는 차량의 운행 기록만 수정 가능하도록 필터링
+        record = get_object_or_404(DrivingRecord, pk=pk, vehicle__company=user_company)
         serializer = DrivingRecordSerializer(record, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()  # 수정된 내용을 데이터베이스에 저장
@@ -643,7 +661,14 @@ class DrivingRecordDetailView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        record = get_object_or_404(DrivingRecord, pk=pk, company=request.user.company)  # pk로 특정 운행 기록 조회
+        user_company = request.user.company
+        if not user_company:
+            return Response({
+                "message": "회사가 등록되지 않은 사용자입니다."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 로그인한 사용자의 회사에 해당하는 차량의 운행 기록만 삭제 가능하도록 필터링
+        record = get_object_or_404(DrivingRecord, pk=pk, vehicle__company=user_company)
         record.delete()  # 운행 기록 삭제
         return Response({
             "message": "운행 기록이 성공적으로 삭제되었습니다."
@@ -738,12 +763,19 @@ class ExpenseListCreateView(APIView):
 # 지출 관리 목록 전체 조회
 class ExpenseListView(APIView):
     """
-    GET: 전체 지출 내역 조회
+    GET: 로그인한 사용자의 회사와 일치하는 전체 지출 내역 조회
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        expenses = Expense.objects.all()
+        user_company = request.user.company  # 로그인한 사용자의 회사 정보 가져오기
+        if not user_company:
+            return Response({
+                "message": "회사가 등록되지 않은 사용자입니다."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 로그인한 사용자의 회사와 일치하는 지출 내역만 가져오기
+        expenses = Expense.objects.filter(vehicle__company=user_company)
         serializer = ExpenseSerializer(expenses, many=True)
         return Response({
             "message": "지출 내역 목록 조회가 성공적으로 완료되었습니다.",
@@ -760,11 +792,18 @@ class ExpenseDetailView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    def get_object(self, pk):
-        return get_object_or_404(Expense, pk=pk)
+    def get_object(self, pk, user_company):
+        # 로그인한 사용자의 회사와 일치하는 지출 내역만 가져올 수 있도록 필터링
+        return get_object_or_404(Expense, pk=pk, vehicle__company=user_company)
 
     def get(self, request, pk):
-        expense = self.get_object(pk)
+        user_company = request.user.company  # 로그인한 사용자의 회사 정보 가져오기
+        if not user_company:
+            return Response({
+                "message": "회사가 등록되지 않은 사용자입니다."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        expense = self.get_object(pk, user_company)
         serializer = ExpenseSerializer(expense)
         return Response({
             "message": "지출 내역 조회가 성공적으로 완료되었습니다.",
@@ -775,10 +814,16 @@ class ExpenseDetailView(APIView):
         # MEDIA_ROOT 경로에 media 폴더가 없으면 생성합니다.
         if not os.path.exists(settings.MEDIA_ROOT):
             os.makedirs(settings.MEDIA_ROOT)
-            
-        expense = self.get_object(pk)
+
+        user_company = request.user.company  # 로그인한 사용자의 회사 정보 가져오기
+        if not user_company:
+            return Response({
+                "message": "회사가 등록되지 않은 사용자입니다."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        expense = self.get_object(pk, user_company)
         serializer = ExpenseSerializer(expense, data=request.data, partial=True)
-        
+
         if serializer.is_valid():
             serializer.save()
             return Response({
@@ -791,7 +836,13 @@ class ExpenseDetailView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        expense = self.get_object(pk)
+        user_company = request.user.company  # 로그인한 사용자의 회사 정보 가져오기
+        if not user_company:
+            return Response({
+                "message": "회사가 등록되지 않은 사용자입니다."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        expense = self.get_object(pk, user_company)
         expense.delete()
         return Response({
             "message": "지출 내역이 성공적으로 삭제되었습니다."
