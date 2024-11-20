@@ -570,6 +570,9 @@ class DrivingRecordListCreateView(APIView):
     """
     POST: 새로운 운행 기록 생성
     """
+    
+    permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
+    
     def post(self, request):
         # context에 request를 추가하여 serializer에서 현재 사용자 정보에 접근 가능하도록 설정
         serializer = DrivingRecordSerializer(data=request.data, context={'request': request})
@@ -590,8 +593,10 @@ class DrivingRecordListView(APIView):
     """
     GET: 전체 운행 기록 목록 조회
     """
+    permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
+    
     def get(self, request):
-        records = DrivingRecord.objects.all()  # 모든 운행 기록 가져오기
+        records = Vehicle.objects.filter(company=request.user.company)  # 로그인한 사용자의 회사에 소속된 차량만 가져오기
         serializer = DrivingRecordSerializer(records, many=True)  # 여러 개의 운행 기록 직렬화
         return Response({
             "message": "운행 기록 목록 조회가 성공적으로 완료되었습니다.",
@@ -607,6 +612,8 @@ class DrivingRecordDetailView(APIView):
     PUT: 특정 운행 기록 수정
     DELETE: 특정 운행 기록 삭제
     """
+    permission_classes = [IsAuthenticated]  # 인증된 사용자만 접근 가능
+    
     def get(self, request, pk):
         try:
             record = get_object_or_404(DrivingRecord, pk=pk)  # pk로 특정 운행 기록 조회
