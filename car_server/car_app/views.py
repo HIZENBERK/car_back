@@ -616,7 +616,7 @@ class DrivingRecordDetailView(APIView):
     
     def get(self, request, pk):
         try:
-            record = get_object_or_404(DrivingRecord, pk=pk)  # pk로 특정 운행 기록 조회
+            record = get_object_or_404(DrivingRecord, pk=pk, company=request.user.company)  # pk로 특정 운행 기록 조회
             serializer = DrivingRecordSerializer(record)
             return Response({
                 "message": "운행 기록 조회가 성공적으로 완료되었습니다.",
@@ -629,7 +629,7 @@ class DrivingRecordDetailView(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
 
     def put(self, request, pk):
-        record = get_object_or_404(DrivingRecord, pk=pk)  # pk로 특정 운행 기록 조회
+        record = get_object_or_404(DrivingRecord, pk=pk, company=request.user.company)  # pk로 특정 운행 기록 조회
         serializer = DrivingRecordSerializer(record, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()  # 수정된 내용을 데이터베이스에 저장
@@ -643,7 +643,7 @@ class DrivingRecordDetailView(APIView):
         }, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        record = get_object_or_404(DrivingRecord, pk=pk)  # pk로 특정 운행 기록 조회
+        record = get_object_or_404(DrivingRecord, pk=pk, company=request.user.company)  # pk로 특정 운행 기록 조회
         record.delete()  # 운행 기록 삭제
         return Response({
             "message": "운행 기록이 성공적으로 삭제되었습니다."
